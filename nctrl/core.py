@@ -11,7 +11,7 @@ from .output import Laser
 from .gui import nctrl_gui
 
 
-class nctrl:
+class NCtrl:
     def __init__(self,
                  prbfile=None,
                  fetfile='./fet.bin',
