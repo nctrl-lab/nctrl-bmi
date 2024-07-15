@@ -43,7 +43,7 @@ class nctrl:
         if prb_files:
             return prb_files[0]
 
-        prb_folder = os.path.expanduser('~/Work/probe_files')
+        prb_folder = os.path.expanduser('~/Work/probe-files')
         prb_files = [f for f in os.listdir(prb_folder) if f.endswith('.prb')]
         if prb_files:
             return os.path.join(prb_folder, prb_files[0])

@@ -1,5 +1,26 @@
+# general
+.DS_Store
+*/.DS_Store
+build/*
+dist/*
 *.swp
+*.swo
+
+# python
 *.pyc
-__pycache__
+*egg-info
+dask-worker-space/*
+*.py[cod]
+__pycache__/
+
+# jupyter notebook
 .ipynb_checkpoints
 */.ipynb_checkpoints
+
+# IDE
+.idea
+.vscode
+.vim
+
+# tmux
+*.log
