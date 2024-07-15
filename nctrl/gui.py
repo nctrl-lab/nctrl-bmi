@@ -74,7 +74,7 @@ class nctrl_gui(QWidget):
             self.raster_view = raster_view(n_units=10, t_window=t_window, view_window=view_window)
 
         layout_right = QVBoxLayout()
-        layout_right.addWidget(self.raster_view)
+        layout_right.addWidget(self.raster_view.native)
         rightside = QWidget()
         rightside.setLayout(layout_right)
 
@@ -99,7 +99,7 @@ class nctrl_gui(QWidget):
             self.nctrl.output.on()
         else:
             self.bmi_btn.setText('BMI Off')
-            self.bmi_btn.setStyleSheet("background-color: grey")
+            self.bmi_btn.setStyleSheet("background-color: white")
 
             self.nctrl.output.off()
 
@@ -107,12 +107,12 @@ class nctrl_gui(QWidget):
         if checked:
             self.stream_btn.setText('Stream On')
             self.stream_btn.setStyleSheet("background-color: green")
-            self.bmi.start(gui_queue=False)
+            self.nctrl.bmi.start(gui_queue=False)
             self.view_timer.start(self.update_interval)
         else:
             self.stream_btn.setText('Stream Off')
-            self.stream_btn.setStyleSheet("background-color: grey")
-            self.bmi.stop()
+            self.stream_btn.setStyleSheet("background-color: white")
+            self.nctrl.bmi.stop()
             self.view_timer.stop()
 
     def view_update(self):

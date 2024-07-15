@@ -1,6 +1,5 @@
 import os
 import sys
-
 from PyQt5.QtWidgets import QApplication
 
 from spiketag.base import probe
@@ -24,7 +23,7 @@ class NCtrl:
         if self.prbfile:
             print(f'Loading probe file: {self.prbfile}')
             self.prb = probe()
-            self.prb.load(prbfile=self.prbfile)
+            self.prb.load(self.prbfile)
         else:
             raise FileNotFoundError('No probe file found. Please provide a probe file.')
 
@@ -71,6 +70,6 @@ class NCtrl:
     
     def show(self):
         app = QApplication(sys.argv)
-        gui = nctrl_gui(self)
-        gui.show()
+        self.gui = nctrl_gui(self)
+        self.gui.show()
         app.exec_()

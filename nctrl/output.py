@@ -1,3 +1,4 @@
+import time
 import serial
 import numpy as np
 
@@ -32,4 +33,8 @@ class Laser:
         if not isinstance(duration, int) or duration < 0:
             raise ValueError("Duration (ms) must be a non-negative integer")
         self.ser.write(f'd{duration}'.encode())
-        print(self.ser.read_all())
+
+        time.sleep(0.5)
+        output = self.ser.read_all().decode()
+        if output:
+            print(output)
