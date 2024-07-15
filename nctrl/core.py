@@ -18,8 +18,7 @@ class nctrl:
                  output_type='laser',
                  output_port='/dev/ttyACM0',
                  bin_size=0.1,
-                 B_bins=20,
-                 decoder='fr'):
+                 B_bins=20):
 
         self.prbfile = self.find_probe_file(prbfile)
         if self.prbfile:
@@ -50,7 +49,7 @@ class nctrl:
             return os.path.join(prb_folder, prb_files[0])
         return None
     
-    def set_decoder(self, decoder, **kwargs):
+    def set_decoder(self, decoder='fr', **kwargs):
         if decoder == 'fr':
             self.dec = FrThreshold()
             self.dec.fit(**kwargs)

@@ -1,8 +1,12 @@
 import sys
 
+from spiketag.view import raster_view
+from spiketag.utils import Timer
+
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QApplication, QPushButton, QSplitter, QGridLayout, QVBoxLayout, QHBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox
+
 
 class nctrl_gui(QWidget):
 
@@ -11,16 +15,23 @@ class nctrl_gui(QWidget):
 
         if nctrl:
             self.nctrl = nctrl
-            
-            self.ras_view_timer = QtCore.QTimer(self)
-            self.ras_view_timer.timeout.connect(self.ras_view_update)
+
+            self.view_timer = QtCore.QTimer(self)
+            self.view_timer.timeout.connect(self.view_update)
             self.update_interval = 60
+            
         else:
             self.nctrl = None
 
         self.init_gui()
 
-    def init_gui(self):
+    def init_gui(self, t_window=5e-3, view_window=10):
+        
+        self.setAutoFillBackground(True)
+        p = self.palette()
+        p.setColor(self.backgroundRole(), Qt.darkGray)
+        p.setColor(self.foregroundRole(), Qt.white)
+        self.setPalette(p)
 
         # stream button: shows the current neural data
         self.stream_btn = QPushButton("Stream Off")
@@ -57,8 +68,13 @@ class nctrl_gui(QWidget):
         leftside.setLayout(layout_left)
 
         # there will be a raster view
+        if self.nctrl:
+            self.raster_view = raster_view(n_units=self.nctrl.bmi.fpga.n_units+1, t_window=t_window, view_window=view_window)
+        else:
+            self.raster_view = raster_view(n_units=10, t_window=t_window, view_window=view_window)
+
         layout_right = QVBoxLayout()
-        # layout_right.addLayout(layout_btn)
+        layout_right.addWidget(self.raster_view)
         rightside = QWidget()
         rightside.setLayout(layout_right)
 
@@ -74,10 +90,17 @@ class nctrl_gui(QWidget):
         if checked:
             self.bmi_btn.setText('BMI On')
             self.bmi_btn.setStyleSheet("background-color: green")
+
+            # set decoder
+            unit_id = self.unit_btn.value()
+            thres = self.ft_btn.value()
+            self.nctrl.set_decoder(decoder='fr', unit_id=unit_id, thres=thres)
+
             self.nctrl.output.on()
         else:
             self.bmi_btn.setText('BMI Off')
             self.bmi_btn.setStyleSheet("background-color: grey")
+
             self.nctrl.output.off()
 
     def stream_toggle(self, checked):
@@ -85,12 +108,17 @@ class nctrl_gui(QWidget):
             self.stream_btn.setText('Stream On')
             self.stream_btn.setStyleSheet("background-color: green")
             self.bmi.start(gui_queue=False)
-            self.ras_view_timer.start(self.update_interval)
+            self.view_timer.start(self.update_interval)
         else:
             self.stream_btn.setText('Stream Off')
             self.stream_btn.setStyleSheet("background-color: grey")
             self.bmi.stop()
-            self.ras_view_timer.stop()
+            self.view_timer.stop()
+
+    def view_update(self):
+        with Timer('update', verbose=False):
+            if self.nctrl:
+                self.raster_view.update_fromfile()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
