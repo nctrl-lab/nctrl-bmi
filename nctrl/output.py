@@ -2,6 +2,8 @@ import time
 import serial
 import numpy as np
 
+from nctrl.utils import tprint
+
 class Laser:
     def __init__(self, port, duration=500):
         self.ser = serial.Serial(port=port, baudrate=115200, timeout=0)
@@ -24,17 +26,20 @@ class Laser:
     def on(self):
         self.enable = True
         self.ser.write(b'e')
+        tprint('nctrl.output.Laser.on: Laser on')
     
     def off(self):
         self.enable = False
         self.ser.write(b'E')
+        tprint('nctrl.output.Laser.off: Laser off')
     
     def set_duration(self, duration):
         if not isinstance(duration, int) or duration < 0:
             raise ValueError("Duration (ms) must be a non-negative integer")
         self.ser.write(f'd{duration}'.encode())
+        tprint(f'nctrl.output.Laser.set_duration: Setting duration to {duration}ms')
 
-        time.sleep(0.5)
-        output = self.ser.read_all().decode()
-        if output:
-            print(output)
+        while self.ser.in_waiting > 0:
+            output = self.ser.readline().decode().strip()
+            if output:
+                tprint(f'nctrl.output.Laser.from_serial: {output}')

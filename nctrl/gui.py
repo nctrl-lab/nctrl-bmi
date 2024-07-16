@@ -88,12 +88,15 @@ class nctrl_gui(QWidget):
     
     def bmi_toggle(self, checked):
         if checked:
+            if not self.stream_btn.isChecked():
+                self.stream_btn.setChecked(True)
+                self.stream_toggle(True)
             self.bmi_btn.setText('BMI On')
             self.bmi_btn.setStyleSheet("background-color: green")
 
             # set decoder
             unit_id = self.unit_btn.value()
-            thres = self.ft_btn.value()
+            thres = self.fr_btn.value()
             self.nctrl.set_decoder(decoder='fr', unit_id=unit_id, thres=thres)
 
             self.nctrl.output.on()

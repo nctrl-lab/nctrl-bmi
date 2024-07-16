@@ -1,16 +1,18 @@
 from spiketag.analysis import Decoder
-from .unit import Unit
+from nctrl.utils import tprint
 
 class FrThreshold(Decoder):
-    def __init__(self, unit_id=0, thres=1e6):
-        super(FrThreshold, self).__init__()
+    def __init__(self, t_window=0.1, unit_id=0, thres=1e6):
+        super(FrThreshold, self).__init__(t_window)
         self.unit_id = unit_id
         self.thres = thres
 
     def fit(self, unit_id=None, thres=None):
         if unit_id is not None:
+            tprint(f'Setting unit_id to {unit_id}')
             self.unit_id = unit_id
         if thres is not None:
+            tprint(f'Setting thres to {thres}')
             self.thres = thres
 
     def predict(self, X):
@@ -20,8 +22,8 @@ class FrThreshold(Decoder):
     
 
 class Spikes(Decoder):
-    def __init__(self, unit_ids=None):
-        super().__init__()
+    def __init__(self, t_window=0.001, unit_ids=None):
+        super().__init__(t_window)
         self.unit_ids = unit_ids if unit_ids is not None else []
 
     def fit(self, unit_ids):

@@ -5,9 +5,10 @@ from PyQt5.QtWidgets import QApplication
 from spiketag.base import probe
 from spiketag.realtime import BMI
 
-from .decoder import FrThreshold, Spikes
-from .output import Laser
-from .gui import nctrl_gui
+from nctrl.decoder import FrThreshold, Spikes
+from nctrl.output import Laser
+from nctrl.gui import nctrl_gui
+from nctrl.utils import tprint
 
 
 class NCtrl:
@@ -21,14 +22,16 @@ class NCtrl:
 
         self.prbfile = self.find_probe_file(prbfile)
         if self.prbfile:
-            print(f'Loading probe file: {self.prbfile}')
+            tprint(f'Loading probe file {self.prbfile}')
             self.prb = probe()
             self.prb.load(self.prbfile)
         else:
-            raise FileNotFoundError('No probe file found. Please provide a probe file.')
+            raise FileNotFoundError('nctrl.NCtrl: No probe file found. Please provide a probe file.')
 
         # set input
+        tprint(f'Loading BMI')
         self.bmi = BMI(prb=self.prb, fetfile=fetfile)
+        tprint(f'Setting binner: bin_size={bin_size}, B_bins={B_bins}')
         self.bmi.set_binner(bin_size=bin_size, B_bins=B_bins)
 
         # set output
@@ -66,6 +69,7 @@ class NCtrl:
     
     def set_output(self, output_type='laser', output_port='/dev/ttyACM0'):
         if output_type == 'laser':
+            tprint(f'Setting output to {output_type} on port {output_port}')
             self.output = Laser(output_port)
     
     def show(self):
