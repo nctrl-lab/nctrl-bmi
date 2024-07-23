@@ -14,7 +14,7 @@ class Laser:
 
     def __call__(self, y):
         if isinstance(y, int) and y == 1:
-            self.ser.write(b'1')
+            self.ser.write(b'a')
         elif isinstance(y, (list, np.ndarray)) and len(y) > 1:
             y_uint16 = np.packbits(y[0].astype(np.uint8)).view(np.uint16)
             self.ser.write(b'p' + y_uint16.tobytes())
