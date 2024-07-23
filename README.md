@@ -1,2 +1,2 @@
 # nctrl-bmi
-realtime BMI with spiketag
+Real-time single-unit brain-machine interface

@@ -11,14 +11,13 @@ from nctrl.gui import nctrl_gui
 from nctrl.utils import tprint
 
 
-class NCtrl:
+class NCtrl():
     def __init__(self,
                  prbfile=None,
                  fetfile='./fet.bin',
                  output_type='laser',
                  output_port='/dev/ttyACM0',
-                 bin_size=0.1,
-                 B_bins=20):
+                 ):
 
         self.prbfile = self.find_probe_file(prbfile)
         if self.prbfile:
@@ -31,8 +30,6 @@ class NCtrl:
         # set input
         tprint(f'Loading BMI')
         self.bmi = BMI(prb=self.prb, fetfile=fetfile)
-        tprint(f'Setting binner: bin_size={bin_size}, B_bins={B_bins}')
-        self.bmi.set_binner(bin_size=bin_size, B_bins=B_bins)
 
         # set output
         self.set_output(output_type, output_port)
@@ -50,7 +47,7 @@ class NCtrl:
         if prb_files:
             return os.path.join(prb_folder, prb_files[0])
         return None
-    
+
     def set_decoder(self, decoder='fr', **kwargs):
         if decoder == 'fr':
             self.dec = FrThreshold()
@@ -74,6 +71,6 @@ class NCtrl:
     
     def show(self):
         app = QApplication(sys.argv)
-        self.gui = nctrl_gui(self)
+        self.gui = nctrl_gui(nctrl=self)
         self.gui.show()
         app.exec_()
