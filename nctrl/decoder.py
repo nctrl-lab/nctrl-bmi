@@ -7,6 +7,7 @@ class FrThreshold(Decoder):
         self.unit_id = unit_id
         self.nspike = nspike
         self.is_active = False
+        self.active_count = 0
 
     def fit(self, unit_id=None, nspike=None):
         if unit_id is not None:
@@ -21,16 +22,25 @@ class FrThreshold(Decoder):
         # X.shape = [B, N] # B bins, N units
         unit_spike_count = X[:, self.unit_id].sum()
         if self.is_active:
-            if unit_spike_count < self.nspike:
+            if unit_spike_count < self.nspike: # not active anymore
                 self.is_active = False
+                self.active_count = 0
                 return 0
-            else:
+            else: # still active
+                # self.active_count += 1
+                # if self.active_count > X.shape[0]: # if active for more than the number of bins
+                #     self.active_count = 1
+                #     return 1
+                # else:
+                #     return 0
                 return 0
         else:
-            if unit_spike_count >= self.nspike:
+            if unit_spike_count >= self.nspike: # just became active
                 self.is_active = True
+                self.active_count = 1
                 return 1
-            else:
+            else: # still inactive
+                self.active_count = 0
                 return 0
     
 

@@ -7,4 +7,9 @@ setup(
     url="https://github.com/lapis42/nctrl-bmi",
     author="Nahyun Kim, Dohoung Kim",
     packages=["nctrl"],
+    entry_points={
+        "console_scripts": [
+            "nctrl=nctrl.cli:main",
+        ]
+    }
 )

@@ -1,3 +1,4 @@
+import glob
 import time
 import serial
 import numpy as np
@@ -5,16 +6,26 @@ import numpy as np
 from nctrl.utils import tprint
 
 class Laser:
-    def __init__(self, port, duration=500):
-        self.ser = serial.Serial(port=port, baudrate=115200, timeout=0)
+    def __init__(self, port=None):
+        if port is None:
+            available_ports = glob.glob('/dev/ttyACM*')
+            if available_ports:
+                port = available_ports[0]
+            else:
+                raise ValueError("No suitable port found in /dev/ttyACM*")
+
+        tprint(f'Setting output to Laser on port {port}')
+        self.ser = serial.Serial(port=port, baudrate=2000000, timeout=0)
         self.ser.flushInput()
         self.ser.flushOutput()
-        self.duration = duration
-        self.set_duration(duration)
+        self.duration = 500
 
     def __call__(self, y):
         if isinstance(y, int) and y == 1:
-            self.ser.write(b'a')
+            try:
+                self.ser.write(b'a')
+            except Exception as e:
+                print(f"Error writing to serial port: {e}")
         elif isinstance(y, (list, np.ndarray)) and len(y) > 1:
             y_uint16 = np.packbits(y[0].astype(np.uint8)).view(np.uint16)
             self.ser.write(b'p' + y_uint16.tobytes())
@@ -33,6 +44,7 @@ class Laser:
         self.print_serial()
     
     def set_duration(self, duration):
+        self.duration = duration
         if not isinstance(duration, int) or duration < 0:
             raise ValueError("Duration (ms) must be a non-negative integer")
         self.ser.write(f'd{duration}'.encode())
@@ -46,3 +58,7 @@ class Laser:
                 tprint(f'nctrl.output.Laser.from_serial: {output}')
                 break
             time.sleep(0.1)  # Wait a bit before trying again
+
+    def close(self):
+        self.ser.close()
+        tprint('nctrl.output.Laser.close: Laser closed')

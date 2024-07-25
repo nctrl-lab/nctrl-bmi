@@ -42,13 +42,15 @@ enum LaserState {
     STANDBY,
     LASERON,
     LASEROFF,
-    DONE
+    DONE,
+    PULSE
 };
 
 LaserState state = STANDBY;
+bool enable = false;
 
-#define enableOn() digitalWriteFast(2, HIGH);
-#define enableOff() digitalWriteFast(2, LOW);
+#define enableOn() {digitalWriteFast(2, HIGH); enable = true;}
+#define enableOff() {digitalWriteFast(2, LOW); enable = false;}
 #define laserOn() {digitalWriteFast(3, HIGH); digitalWriteFast(4, HIGH);}
 #define laserOff() {digitalWriteFast(3, LOW); digitalWriteFast(4, LOW);}
 
@@ -77,8 +79,15 @@ void checkSerial() {
 
 void handleCommand(char cmd) {
     switch (cmd) {
+        case '1': // single pulse
+            if (enable) {
+                laserPulse();
+            }
+            break;
         case 'a': // start laser
-            startLaser();
+            if (enable) {
+                startLaser();
+            }
             break;
         case 'A': // abort laser
             abortLaser();
@@ -88,12 +97,15 @@ void handleCommand(char cmd) {
             Serial.println("Laser enabled");
             break;
         case 'E': // disable laser
+            laserOff();
             enableOff();
             Serial.println("Laser disabled");
             break;
         case 'c': // constantly on
-            laserOn();
-            Serial.println("Laser is on");
+            if (enable) {
+                laserOn();
+                Serial.println("Laser is on");
+            }
             break;
         case 'C': // constantly off
             laserOff();
@@ -108,8 +120,14 @@ void handleCommand(char cmd) {
     }
 }
 
+void laserPulse() {
+    state = PULSE;
+    startTime = now;
+    laserOn();
+}
+
 void startLaser() {
-    if (state == STANDBY) {
+    if (state == STANDBY || state == DONE) {
         state = LASERON;
         startTime = now;
         intervalTime = now;
@@ -127,7 +145,8 @@ void abortLaser() {
 void setLaserDuration() {
     int duration = Serial.parseInt(); // read in ms ## this can be very slow (~1s)!!!
     finishDuration = duration * 1000; // write in us
-    Serial.println("Laser duration is set to " + String(duration));
+    Serial.print("Laser duration is set to " + String(duration));
+    Serial.println(" ms");
 }
 
 void checkLaser() {
@@ -147,6 +166,12 @@ void checkLaser() {
                 state = LASERON;
                 intervalTime = now;
                 laserOn();
+            }
+            break;
+        case PULSE:
+            if (now - startTime >= LASER_DURATION) {
+                state = DONE;
+                laserOff();
             }
             break;
         default:

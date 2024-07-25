@@ -93,8 +93,9 @@ class Unit():
     def simulate(self, unit_id=1):
         i_unit = unit_id - 1
 
-        def update(bin_size, B, spike_count):
-            time_bin = np.arange(self.start_time, self.end_time, bin_size)
+        def update(bin_size, B, spike_count, window_size, start_time):
+            end_time = start_time + window_size
+            time_bin = np.arange(start_time, end_time, bin_size)
             spike_hist = np.histogram(self.spike_time[i_unit], time_bin)[0]
             spike_conv = np.convolve(spike_hist, np.ones(B), 'same')
 
@@ -104,21 +105,18 @@ class Unit():
             th_up_idx = np.where(np.diff((spike_conv >= spike_count).astype(int)) > 0)[0] + 1
             time_th_up = t[th_up_idx]
 
-            laser_fr = len(th_up_idx) / self.duration
+            laser_fr = len(th_up_idx) / window_size
 
-            plt.figure()
+            plt.figure(figsize=(12, 3))
             plt.plot(t, spike_conv, 'k')
-            for th in time_th_up:
-                plt.axvline(th, color='r', linestyle='--')
-            plt.title(f'Unit {i_unit + 1}, bin_size: {bin_size}, B: {B}, spike_count: {spike_count} -> Fr: {laser_fr}')
+            plt.vlines(time_th_up, ymin=plt.ylim()[0], ymax=plt.ylim()[1], colors='r', linestyles='--')
+            plt.title(f'Unit {i_unit + 1}, bin_size: {bin_size}, B: {B}, spike_count: {spike_count} -> Fr: {laser_fr:.2f}')
+            plt.xlim(start_time, end_time)
             plt.show()
     
         interact(update,
-             bin_size=SelectionSlider(options=[0.00004, 0.0004, 0.001, 0.01, 0.1], value=0.1, description='bin_size'),
-             B=IntSlider(min=1, max=100, step=1, value=10),
-             spike_count=IntSlider(min=1, max=100, step=1, value=1))
-
-
-            
-
-        
+             bin_size=SelectionSlider(options=[0.00004, 0.0004, 0.001, 0.01, 0.1], value=0.1, description='Bin size (s)'),
+             B=IntSlider(min=1, max=100, step=1, value=10, description='Bins (B)'),
+             spike_count=IntSlider(min=1, max=100, step=1, value=1, description='Spike count'),
+             window_size=FloatSlider(min=1, max=60, step=1, value=60, description='Window (s)'),
+             start_time=FloatSlider(min=self.start_time, max=self.end_time-1, step=1, value=self.start_time, description='Start Time (s)'))

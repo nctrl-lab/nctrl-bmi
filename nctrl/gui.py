@@ -5,7 +5,7 @@ from spiketag.utils import Timer
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QApplication, QPushButton, QSplitter, QGridLayout, QVBoxLayout, QHBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox, QRadioButton, QLabel
+from PyQt5.QtWidgets import QWidget, QApplication, QPushButton, QSplitter, QGridLayout, QVBoxLayout, QHBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox, QRadioButton, QLabel, QComboBox
 
 
 class nctrl_gui(QWidget):
@@ -23,6 +23,7 @@ class nctrl_gui(QWidget):
             
         else:
             self.nctrl = None
+            self.view_timer = None
 
         self.bin_size = 0.00004
         self.init_gui()
@@ -50,23 +51,12 @@ class nctrl_gui(QWidget):
         self.unit_btn.setRange(1, 100)
         self.unit_btn.setValue(1)
 
-        self.bin_0_btn = QRadioButton("0.00004") # 1 frame
-        self.bin_0_btn.toggled.connect(self.bin_toggle)
-        self.bin_1_btn = QRadioButton("0.0004") # 10 frames
-        self.bin_1_btn.toggled.connect(self.bin_toggle)
-        self.bin_2_btn = QRadioButton("0.001") # 25 frames
-        self.bin_2_btn.toggled.connect(self.bin_toggle)
-        self.bin_3_btn = QRadioButton("0.010") # 250 frames
-        self.bin_3_btn.toggled.connect(self.bin_toggle)
-        self.bin_4_btn = QRadioButton("0.100") # 2500 frames
-        self.bin_4_btn.toggled.connect(self.bin_toggle)
-
-        bin_layout = QVBoxLayout()
-        bin_layout.addWidget(self.bin_0_btn)
-        bin_layout.addWidget(self.bin_1_btn)
-        bin_layout.addWidget(self.bin_2_btn)
-        bin_layout.addWidget(self.bin_3_btn)
-        bin_layout.addWidget(self.bin_4_btn)
+        self.bin_menu = QComboBox()
+        self.bin_menu.addItem("0.0004") # 10 frames
+        self.bin_menu.addItem("0.001") # 25 frames
+        self.bin_menu.addItem("0.010") # 250 frames
+        self.bin_menu.addItem("0.100") # 2500 frames
+        self.bin_menu.currentIndexChanged.connect(self.bin_toggle)
 
         self.B_btn = QSpinBox()
         self.B_btn.setRange(1, 100)
@@ -87,20 +77,30 @@ class nctrl_gui(QWidget):
         self.fr_btn.setSuffix(" Hz")
         self.fr_btn.setEnabled(False)
 
+        self.laser_duration_btn = QComboBox()
+        self.laser_duration_btn.addItem("1")
+        self.laser_duration_btn.addItem("5")
+        self.laser_duration_btn.addItem("10")
+        self.laser_duration_btn.addItem("100")
+        self.laser_duration_btn.addItem("500")
+        self.laser_duration_btn.currentIndexChanged.connect(self.laser_duration_toggle)
+        self.laser_duration_btn.setCurrentIndex(1)  # Set default to "5"
+
         layout_setting = QFormLayout()
         layout_setting.addRow("Unit ID", self.unit_btn)
-        layout_setting.addRow("Bin size (s)", bin_layout)
+        layout_setting.addRow("Bin size (s)", self.bin_menu)
         layout_setting.addRow("Bin count", self.B_btn)
         layout_setting.addRow("Spike count", self.nspike_btn)
         layout_setting.addRow("Fr", self.fr_btn)
+        layout_setting.addRow("Laser duration (ms)", self.laser_duration_btn)
 
         layout_btn = QGridLayout()
-        layout_btn.addWidget(self.stream_btn, 0, 0)
-        layout_btn.addWidget(self.bmi_btn, 1, 0)
+        layout_btn.addWidget(self.bmi_btn, 0, 0)
+        layout_btn.addWidget(self.stream_btn, 1, 0)
         layout_btn.addLayout(layout_setting, 2, 0)
 
-        self.bin_4_btn.setChecked(True)
-        self.bin_4_btn.toggled.emit(True)
+        self.bin_menu.setCurrentIndex(3)
+        self.bin_menu.currentIndexChanged.emit(3)
 
         layout_left = QVBoxLayout()
         layout_left.addLayout(layout_btn)
@@ -126,68 +126,93 @@ class nctrl_gui(QWidget):
         layout_main.addWidget(splitter)
         self.setLayout(layout_main)
 
-    def bin_toggle(self, checked):
+    def bmi_toggle(self, checked):
         '''
-        Bin size: set the bin size
+        BMI: enable output
         '''
-        rb = self.sender()
-        if rb.isChecked():
-            self.bin_size = float(rb.text())
-            self.update_fr()
-    
-    def update_fr(self):
-        self.fr_btn.setValue(self.nspike_btn.value() / self.bin_size / self.B_btn.value())
+        if checked:
+            # start bmi
+            bin_size = self.bin_size
+            B_bins = self.B_btn.value()
+            unit_id = self.unit_btn.value()
+            nspike = self.nspike_btn.value()
+
+            if self.nctrl:
+                self.nctrl.output.on()
+                self.nctrl.bmi.set_binner(bin_size=bin_size, B_bins=B_bins)
+                self.nctrl.set_decoder(decoder='fr', unit_id=unit_id, nspike=nspike)
+                self.nctrl.bmi.start(gui_queue=False)
+
+            self.bmi_btn.setText('BMI On')
+            self.bmi_btn.setStyleSheet("background-color: green")
+        else:
+            if self.stream_btn.isChecked():
+                self.stream_btn.setChecked(False)
+                self.stream_toggle(False)
+
+            self.bmi_btn.setText('BMI Off')
+            self.bmi_btn.setStyleSheet("background-color: white")
+
+            if self.nctrl:
+                self.nctrl.output.off()
+                self.nctrl.bmi.stop()
 
     def stream_toggle(self, checked):
         '''
         Stream: starts to collect neural data
         '''
         if checked:
-            # set binner
-            bin_size = self.bin_size
-            B_bins = self.B_btn.value()
-            self.nctrl.bmi.set_binner(bin_size=bin_size, B_bins=B_bins)
+            if not self.bmi_btn.isChecked():
+                self.bmi_btn.setChecked(True)
+                self.bmi_toggle(True)
 
-            # set decoder
-            unit_id = self.unit_btn.value()
-            nspike = self.nspike_btn.value()
-            self.nctrl.set_decoder(decoder='fr', unit_id=unit_id, nspike=nspike)
+            if self.view_timer:
+                self.view_timer.start(self.update_interval)
 
             self.stream_btn.setText('Stream On')
             self.stream_btn.setStyleSheet("background-color: green")
-            self.nctrl.bmi.start(gui_queue=False)
-            self.view_timer.start(self.update_interval)
         else:
-            if self.bmi_btn.isChecked():
-                self.bmi_btn.setChecked(False)
-                self.bmi_toggle(False)
+            if self.view_timer:
+                self.view_timer.stop()
+
             self.stream_btn.setText('Stream Off')
             self.stream_btn.setStyleSheet("background-color: white")
-            self.nctrl.bmi.stop()
-            self.view_timer.stop()
-    
-    def bmi_toggle(self, checked):
-        '''
-        BMI: enable output
-        '''
-        if checked:
-            if not self.stream_btn.isChecked():
-                self.stream_btn.setChecked(True)
-                self.stream_toggle(True)
-            self.bmi_btn.setText('BMI On')
-            self.bmi_btn.setStyleSheet("background-color: green")
-
-            self.nctrl.output.on()
-        else:
-            self.bmi_btn.setText('BMI Off')
-            self.bmi_btn.setStyleSheet("background-color: white")
-
-            self.nctrl.output.off()
 
     def view_update(self):
         with Timer('update', verbose=False):
             if self.nctrl:
                 self.raster_view.update_fromfile(filename=self.nctrl.bmi.fetfile, n_items=8, last_N=20000)
+
+    def bin_toggle(self):
+        '''
+        Bin size: set the bin size
+        '''
+        self.bin_size = float(self.bin_menu.currentText())
+        self.update_fr()
+
+    def laser_duration_toggle(self):
+        '''
+        Laser duration: set the laser duration
+        '''
+        self.laser_duration = int(self.laser_duration_btn.currentText())
+        if self.nctrl:
+            self.nctrl.output.set_duration(self.laser_duration)
+    
+    def update_fr(self):
+        self.fr_btn.setValue(self.nspike_btn.value() / self.bin_size / self.B_btn.value())
+
+    def closeEvent(self, event):
+        '''
+        Handle actions when the window is closing
+        '''
+        if self.nctrl:
+            if self.stream_btn.isChecked():
+                self.stream_toggle(False)
+            if self.bmi_btn.isChecked():
+                self.bmi_toggle(False)
+            self.nctrl.output.close()
+            self.nctrl.bmi.close()
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
