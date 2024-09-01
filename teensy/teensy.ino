@@ -1,13 +1,11 @@
 // 40 Hz square wave generator for teensy 4.0
 // clock speed: 600 MHz
 
+#define ENABLE_PIN 2
+#define LASER_PIN 3
 
 // PINS for spike pulses
 // { 15, 14, 18, 19, 0, 1, 21, 20, 23, 22, 16, 17, 13, 11, 12, 10};
-// PINS for laser
-// 3, 4
-// PINS for enable signal
-// 2
 #define lsb0_3mask_8bit     0x0f             //                               0000 1111 in binary
 #define lsb4_7mask_8bit     0xf0             //                               1111 0000 in binary
 #define lsb4_9mask_16bit    0x03f0           //                     0000 0011 1111 0000 in binary
@@ -49,18 +47,24 @@ enum LaserState {
 LaserState state = STANDBY;
 bool enable = false;
 
-#define enableOn() {digitalWriteFast(2, HIGH); enable = true;}
-#define enableOff() {digitalWriteFast(2, LOW); enable = false;}
-#define laserOn() {digitalWriteFast(3, HIGH); digitalWriteFast(4, HIGH);}
-#define laserOff() {digitalWriteFast(3, LOW); digitalWriteFast(4, LOW);}
+#define enableOn()  {digitalWriteFast(ENABLE_PIN, HIGH); enable = true;}
+#define enableOff() {digitalWriteFast(ENABLE_PIN, LOW);  enable = false;}
+#define laserOn()   digitalWriteFast(LASER_PIN, HIGH)
+#define laserOff()  digitalWriteFast(LASER_PIN, LOW)
 
+void setup() { 
+    // Serial.begin() is optional on Teensy.
+    // USB hardware initialization is performed before setup() runs.
+    // The baud rate input is ignored and only used for Arduino compatibility.
+    // USB serial communication always occurs at full USB speed.
+    // Serial.begin() may wait up to 2.5 seconds for USB serial communication to be ready.
+    // For fastest program startup, do not use this unnecessary function.
+    // Its only purpose is for compatibility with programs written for Arduino.
+    // The delay is intended for programs which do not test the Serial boolean.
 
-void setup() {
-    Serial.begin(115200);
     set_16bit(OUTPUT);
-    pinMode(2, OUTPUT);
-    pinMode(3, OUTPUT);
-    pinMode(4, OUTPUT);
+    pinMode(ENABLE_PIN, OUTPUT);
+    pinMode(LASER_PIN, OUTPUT);
 }
 
 void loop() {
