@@ -2,8 +2,8 @@ from spiketag.analysis import Decoder
 from nctrl.utils import tprint
 
 class FrThreshold(Decoder):
-    def __init__(self, t_window=0.1, unit_id=0, nspike=1e6):
-        super(FrThreshold, self).__init__(t_window)
+    def __init__(self, t_window=0.001, unit_id=0, nspike=1e6):
+        super().__init__(t_window)
         self.unit_id = unit_id
         self.nspike = nspike
         self.is_active = False
@@ -21,28 +21,23 @@ class FrThreshold(Decoder):
         # X is output from Binner
         # X.shape = [B, N] # B bins, N units
         unit_spike_count = X[:, self.unit_id].sum()
-        if self.is_active:
-            if unit_spike_count < self.nspike: # not active anymore
-                self.is_active = False
-                self.active_count = 0
-                return 0
-            else: # still active
-                # self.active_count += 1
-                # if self.active_count > X.shape[0]: # if active for more than the number of bins
-                #     self.active_count = 1
-                #     return 1
-                # else:
-                #     return 0
-                return 0
-        else:
-            if unit_spike_count >= self.nspike: # just became active
+        
+        if unit_spike_count >= self.nspike:
+            if not self.is_active:
                 self.is_active = True
-                self.active_count = 1
-                return 1
-            else: # still inactive
                 self.active_count = 0
-                return 0
-    
+                return 1
+            else:
+                self.active_count += 1
+                if self.active_count >= X.shape[0]:
+                    self.active_count = 0
+                    return 1
+        else:
+            self.is_active = False
+            self.active_count = 0
+        
+        return 0
+
 
 class Spikes(Decoder):
     def __init__(self, t_window=0.001, unit_ids=None):
@@ -55,3 +50,39 @@ class Spikes(Decoder):
     
     def predict(self, X):
         return X[-1, self.unit_ids] > 0 if self.unit_ids else 0
+
+
+class SingleSpike(Decoder):
+    def __init__(self, t_window=0.001, unit_id=0):
+        super().__init__(t_window)
+        self.unit_id = unit_id
+
+    def fit(self, unit_id=None):
+        if unit_id is not None:
+            tprint(f'Setting unit_id to {unit_id}')
+            self.unit_id = unit_id
+
+    def predict(self, X):
+        if X.spk_id == self.unit_id:
+            return 1
+
+
+class Print(Decoder):
+    """
+    A decoder that prints the input every 100 calls.
+
+    This decoder is primarily used for debugging and monitoring purposes.
+    It prints the input X every 100 calls to the predict method.
+    """
+    def __init__(self, t_window=0.001):
+        super().__init__(t_window)
+        self.count = 0
+
+    def fit(self):
+        pass
+
+    def predict(self, X):
+        # TODO: make fancier print
+        if self.count % 100 == 0 and X.spk_id != 0:
+            print(f"{X.timestamp}: G{X.grp_id} S{X.spk_id}", end='\r', flush=True)
+        self.count += 1
