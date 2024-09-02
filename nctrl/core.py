@@ -63,7 +63,8 @@ class NCtrl:
         tprint('Loading BMI')
         for attempt in range(2):
             try:
-                self.bmi = NCtrlBMI(prb=self.prb, fetfile=fetfile)
+                self.bmi = NCtrlBMI(prb=self.prb, fetfile=fetfile, output=self.output)
+                self.n_units = self.bmi.fpga.n_units
                 return
             except Exception as e:
                 if attempt == 0:
@@ -95,6 +96,7 @@ class NCtrl:
         self.dec = decoder_class()
         self.dec.fit(**kwargs)
         self.bmi.mode = mode
+        self.bmi.output = self.output
         self.bmi.set_decoder(dec=self.dec)
 
         if mode == 'binner':
@@ -123,10 +125,10 @@ class NCtrl:
 
 
 class NCtrlBMI(BMI):
-    def __init__(self, prb, fetfile, ttlport=None, mode='binner'):
+    def __init__(self, prb, fetfile, ttlport=None, mode='binner', output=None):
         super().__init__(prb, fetfile, ttlport)
-        self.n_unit = self.fpga.n_units + 1
         self.mode = mode
+        self.output = output
 
     def BMI_core_func(self, gui_queue, model=None):
         self.model = model

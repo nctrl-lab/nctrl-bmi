@@ -28,6 +28,8 @@ from PyQt5.QtWidgets import (
     QListWidget
 )
 
+from nctrl.utils import tprint
+
 
 class NCtrlGUI(QWidget):
     def __init__(self, nctrl=None):
@@ -49,9 +51,9 @@ class NCtrlGUI(QWidget):
         self.init_gui()
 
     def init_gui(self, t_window=10e-3, view_window=1):
-        self.setup_ui()
         if SPIKETAG_AVAILABLE:
             self.setup_raster_view(t_window, view_window)
+        self.setup_ui()
 
     def setup_ui(self):
         self.setAutoFillBackground(True)
@@ -149,14 +151,21 @@ class NCtrlGUI(QWidget):
 
                 # Decoder settings
                 if self.decoder == 'fr':
+                    unit_id = int(self.unit_selector.selectedItems()[0].text())
+                    tprint(f"Fr BMI: bin size {self.bin_size} ms, Bin number {self.B_bins}")
+                    tprint(f"Unit ID: {unit_id}, threshold {self.nspike_btn.value()}")
                     self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
-                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=self.unit_btn.value(), nspike=self.nspike)
+                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, nspike=self.nspike)
                 elif self.decoder == 'spikes':
                     self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
-                    self.nctrl.set_decoder(decoder=self.decoder, unit_ids=np.array([int(item.text()) for item in self.unit_selector.selectedItems()], dtype=int))
+                    unit_ids = np.array([int(item.text()) for item in self.unit_selector.selectedItems()], dtype=int)
+                    self.nctrl.set_decoder(decoder=self.decoder, unit_ids=unit_ids)
                 elif self.decoder == 'single':
-                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=self.unit_btn.value())
+                    unit_id = int(self.unit_selector.selectedItems()[0].text())
+                    tprint(f"Single spike BMI: Unit ID {unit_id}")
+                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id)
                 elif self.decoder == 'print':
+                    tprint('Printing BMI messages: ')
                     self.nctrl.set_decoder(decoder=self.decoder)
                 
                 self.nctrl.bmi.start(gui_queue=False)
@@ -226,7 +235,13 @@ class NCtrlGUI(QWidget):
     # FR decoder setting
     def set_fr_layout(self):
         n_unit = self.nctrl.n_units + 1 if self.nctrl else 10
-        self.unit_btn = QSpinBox(minimum=1, maximum=n_unit, value=1)
+
+        self.unit_selector = QListWidget()
+        self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
+        for i in range(1, n_unit + 1):  # Up to 16 units
+            self.unit_selector.addItem(f"{i}")
+        self.unit_selector.setToolTip("Select a unit to generate spikes.")
+
         self.bin_menu = QComboBox()
         self.bin_menu.addItems(["0.0004", "0.001", "0.010", "0.100"])
         self.bin_menu.currentIndexChanged.connect(self.bin_toggle)
@@ -239,7 +254,7 @@ class NCtrlGUI(QWidget):
         for spin in [self.B_btn, self.nspike_btn]:
             spin.valueChanged.connect(self.update_fr)
 
-        self.layout_setting.addRow("Unit ID", self.unit_btn)
+        self.layout_setting.addRow("Unit ID", self.unit_selector)
         self.layout_setting.addRow("Bin size (s)", self.bin_menu)
         self.layout_setting.addRow("Bin count", self.B_btn)
         self.layout_setting.addRow("Spike count", self.nspike_btn)

@@ -82,6 +82,7 @@ class Print(Decoder):
         pass
 
     def predict(self, X):
-        if self.count % 100 == 0:
-            print(X, end='\r', flush=True)
+        # TODO: make fancier print
+        if self.count % 100 == 0 and X.spk_id != 0:
+            print(f"{X.timestamp}: G{X.grp_id} S{X.spk_id}", end='\r', flush=True)
         self.count += 1
