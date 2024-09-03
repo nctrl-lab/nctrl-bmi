@@ -234,7 +234,7 @@ class NCtrlGUI(QWidget):
     
     # FR decoder setting
     def set_fr_layout(self):
-        n_unit = self.nctrl.n_units + 1 if self.nctrl else 10
+        n_unit = self.nctrl.n_units if self.nctrl else 10
 
         self.unit_selector = QListWidget()
         self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
@@ -271,7 +271,7 @@ class NCtrlGUI(QWidget):
 
     # Single spike decoder setting
     def set_single_layout(self):
-        n_unit = self.nctrl.n_units + 1 if self.nctrl else 10
+        n_unit = self.nctrl.n_units if self.nctrl else 10
         self.unit_selector = QListWidget()
         self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
         for i in range(1, n_unit + 1):  # Up to 16 units
@@ -281,7 +281,7 @@ class NCtrlGUI(QWidget):
 
     # Spikes decoder setting
     def set_spikes_layout(self):
-        n_unit = self.nctrl.n_units + 1 if self.nctrl else 10
+        n_unit = self.nctrl.n_units if self.nctrl else 10
         self.unit_selector = QListWidget()
         self.unit_selector.setSelectionMode(QListWidget.MultiSelection)
         for i in range(1, n_unit + 1):  # Up to 16 units

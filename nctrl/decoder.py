@@ -82,7 +82,8 @@ class Print(Decoder):
         pass
 
     def predict(self, X):
-        # TODO: make fancier print
-        if self.count % 100 == 0 and X.spk_id != 0:
-            print(f"{X.timestamp}: G{X.grp_id} S{X.spk_id}", end='\r', flush=True)
-        self.count += 1
+        if X.spk_id:
+            self.count += 1
+            if self.count % 100 == 0:
+                timestamp_ms = X.timestamp / 25000
+                print(f"\033[1m\033[32m{timestamp_ms:.2f}ms:\033[0m \033[34mGroup {X.grp_id}\033[0m \033[35mSpike {X.spk_id}\033[0m", end='\r', flush=True)
