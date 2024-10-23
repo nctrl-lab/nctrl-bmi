@@ -1,5 +1,7 @@
 import sys
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 
 try:
     from spiketag.view import raster_view
@@ -27,8 +29,6 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QListWidget
 )
-
-from nctrl.utils import tprint
 
 
 class NCtrlGUI(QWidget):
@@ -104,8 +104,8 @@ class NCtrlGUI(QWidget):
         # laser settings
         self.laser_duration_btn = QComboBox()
         self.laser_duration_btn.addItems(["1", "5", "10", "100", "500"])
-        self.laser_duration_btn.setCurrentIndex(1)
         self.laser_duration_btn.currentIndexChanged.connect(self.laser_duration_toggle)
+        self.laser_duration_btn.setCurrentIndex(1)
 
         self.layout_laser = QFormLayout()
         self.layout_laser.addRow("Laser duration (ms)", self.laser_duration_btn)
@@ -152,22 +152,25 @@ class NCtrlGUI(QWidget):
                 # Decoder settings
                 if self.decoder == 'fr':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
-                    tprint(f"Fr BMI: bin size {self.bin_size} ms, Bin number {self.B_bins}")
-                    tprint(f"Unit ID: {unit_id}, threshold {self.nspike_btn.value()}")
                     self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, nspike=self.nspike)
+                    logger.info(f"Fr BMI: bin size {self.bin_size} ms, Bin number {self.B_bins}")
+                    logger.info(f"Unit ID: {unit_id}, threshold {self.nspike_btn.value()}")
+                    logger.info(f"Laser duration: {self.laser_duration} ms")
                 elif self.decoder == 'spikes':
                     self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
                     unit_ids = np.array([int(item.text()) for item in self.unit_selector.selectedItems()], dtype=int)
                     self.nctrl.set_decoder(decoder=self.decoder, unit_ids=unit_ids)
                 elif self.decoder == 'single':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
-                    tprint(f"Single spike BMI: Unit ID {unit_id}")
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id)
+                    logger.info(f"Single spike BMI: Unit ID {unit_id}")
+                    logger.info(f"Laser duration: {self.laser_duration} ms")
                 elif self.decoder == 'print':
-                    tprint('Printing BMI messages: ')
                     self.nctrl.set_decoder(decoder=self.decoder)
+                    logger.info('Printing BMI messages')
                 
+                logger.info('Starting BMI')
                 self.nctrl.bmi.start(gui_queue=False)
             self.update_button_state(self.bmi_btn, 'BMI On', "green")
 
@@ -219,15 +222,19 @@ class NCtrlGUI(QWidget):
         if self.decoder_fr_btn.isChecked():
             self.decoder = 'fr'
             self.set_fr_layout()
+            logger.info('FR decoder selected')
         elif self.decoder_single_btn.isChecked():
             self.decoder = 'single'
             self.set_single_layout()
+            logger.info('Single spike decoder selected')
         elif self.decoder_spikes_btn.isChecked():
             self.decoder = 'spikes'
             self.set_spikes_layout()
+            logger.info('Spikes decoder selected')
         elif self.decoder_print_btn.isChecked():
             self.decoder = 'print'
             self.set_print_layout()
+            logger.info('Print decoder selected')
 
         if hasattr(self, 'settings_widget'):
             self.settings_widget.setLayout(self.layout_setting)
@@ -302,6 +309,7 @@ class NCtrlGUI(QWidget):
     # Laser duration setting
     def laser_duration_toggle(self):
         self.laser_duration = int(self.laser_duration_btn.currentText())
+        logger.info(f"Laser duration: {self.laser_duration} ms")
         if self.nctrl:
             self.nctrl.output.set_duration(self.laser_duration)
     

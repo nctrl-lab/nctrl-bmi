@@ -173,7 +173,7 @@ void checkLaser() {
             }
             break;
         case PULSE:
-            if (now - startTime >= LASER_DURATION) {
+            if (now - startTime >= finishDuration) {
                 state = DONE;
                 laserOff();
             }

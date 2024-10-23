@@ -1,9 +1,10 @@
 import glob
 import time
 import serial
+import logging
 import numpy as np
 
-from nctrl.utils import tprint
+logger = logging.getLogger(__name__)
 
 class Laser:
     """
@@ -40,7 +41,7 @@ class Laser:
                 raise ValueError("No suitable port found in /dev/ttyACM*")
             port = available_ports[0]
 
-        tprint(f'Setting output to Laser on port {port}')
+        logger.info(f'Setting output to Laser on port {port}')
         self.ser = serial.Serial(port=port, baudrate=2000000, timeout=0, write_timeout=0, inter_byte_timeout=0)
         self.ser.flushInput()
         self.ser.flushOutput()
@@ -73,13 +74,13 @@ class Laser:
     def on(self):
         """Turn the laser on."""
         self._write_serial(b'e')
-        tprint('nctrl.output.Laser.on: Laser on')
+        logger.info('Laser on')
         self._print_serial()
     
     def off(self):
         """Turn the laser off."""
         self._write_serial(b'E')
-        tprint('nctrl.output.Laser.off: Laser off')
+        logger.info('Laser off')
         self._print_serial()
     
     def set_duration(self, duration):
@@ -96,7 +97,7 @@ class Laser:
             raise ValueError("Duration (ms) must be a non-negative integer")
         self.duration = duration
         self._write_serial(f'd{duration}'.encode())
-        tprint(f'nctrl.output.Laser.set_duration: Setting duration to {duration} ms')
+        logger.info(f'Setting duration to {duration} ms')
         self._print_serial()
     
     def _print_serial(self):
@@ -108,7 +109,7 @@ class Laser:
         while True:
             output = self.ser.readline().decode().strip()
             if output:
-                tprint(f'nctrl.output.Laser.from_serial: {output}')
+                logger.info(output)
                 break
             time.sleep(0.1)  # Wait a bit before trying again
 

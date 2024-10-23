@@ -1,5 +1,7 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from spiketag.analysis import Decoder
-from nctrl.utils import tprint
 
 class FrThreshold(Decoder):
     def __init__(self, t_window=0.001, unit_id=0, nspike=1e6):
@@ -11,10 +13,10 @@ class FrThreshold(Decoder):
 
     def fit(self, unit_id=None, nspike=None):
         if unit_id is not None:
-            tprint(f'Setting unit_id to {unit_id}')
+            logger.info(f'Setting unit_id to {unit_id}')
             self.unit_id = unit_id
         if nspike is not None:
-            tprint(f'Setting nspike to {nspike}')
+            logger.info(f'Setting nspike to {nspike}')
             self.nspike = nspike
 
     def predict(self, X):
@@ -59,7 +61,7 @@ class SingleSpike(Decoder):
 
     def fit(self, unit_id=None):
         if unit_id is not None:
-            tprint(f'Setting unit_id to {unit_id}')
+            logger.info(f'Setting unit_id to {unit_id}')
             self.unit_id = unit_id
 
     def predict(self, X):
@@ -86,4 +88,4 @@ class Print(Decoder):
             self.count += 1
             if self.count % 100 == 0:
                 timestamp_ms = X.timestamp / 25000
-                print(f"\033[1m\033[32m{timestamp_ms:.2f}ms:\033[0m \033[34mGroup {X.grp_id}\033[0m \033[35mSpike {X.spk_id}\033[0m", end='\r', flush=True)
+                logger.info(f"\033[1m\033[32m{timestamp_ms:.2f}ms:\033[0m \033[34mGroup {X.grp_id}\033[0m \033[35mSpike {X.spk_id}\033[0m", end='\r', flush=True)

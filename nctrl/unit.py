@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from ipywidgets import interact, SelectionSlider, IntSlider, FloatSlider
 
-from spiketag.core import CCG
+try:
+    from spiketag.core import CCG
+except ImportError:
+    print("spiketag module not found. Some features will be disabled.")
 
 class Unit():
     def __init__(self):

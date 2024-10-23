@@ -1,15 +1,17 @@
 import os
 import sys
+import logging
 from PyQt5.QtWidgets import QApplication
+
+logger = logging.getLogger(__name__)
 
 from spiketag.base import probe
 from spiketag.realtime import BMI
-from spiketag.utils.utils import Timer
 
 from nctrl.decoder import *
 from nctrl.output import Laser
 from nctrl.gui import NCtrlGUI
-from nctrl.utils import tprint, kill_existing_processes
+from nctrl.utils import kill_existing_processes
 
 
 class NCtrl:
@@ -34,9 +36,21 @@ class NCtrl:
         output_port (str, optional): Port for the output device.
     """
     def __init__(self, prbfile=None, fetfile='./fet.bin', output_type='laser', output_port=None):
+        self.set_logger()
         self.set_probe(prbfile)
         self.set_output(output_type, output_port)
         self.set_bmi(fetfile)
+    
+    def set_logger(self):
+        log_format = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-8s %(message)s')
+        logging.basicConfig(filename='bmi.log',
+                            filemode='w',
+                            level=logging.INFO,
+                            format=log_format,
+                            force=True)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(log_format)
+        logger.addHandler(console_handler)
 
     def set_probe(self, prbfile):
         def _find_probe_file(prbfile):
@@ -55,12 +69,12 @@ class NCtrl:
         if not self.prbfile:
             raise FileNotFoundError('nctrl.NCtrl: No probe file found. Please provide a probe file.')
 
-        tprint(f'Loading probe file {self.prbfile}')
+        logger.info(f'Loading probe file {self.prbfile}')
         self.prb = probe()
         self.prb.load(self.prbfile)
 
     def set_bmi(self, fetfile):
-        tprint('Loading BMI')
+        logger.info('Loading BMI')
         for attempt in range(2):
             try:
                 self.bmi = NCtrlBMI(prb=self.prb, fetfile=fetfile, output=self.output)
@@ -68,8 +82,8 @@ class NCtrl:
                 return
             except Exception as e:
                 if attempt == 0:
-                    tprint(f"Error initializing BMI: {e}")
-                    tprint("Attempting to kill existing processes and retry...")
+                    logger.error(f"Error initializing BMI: {e}")
+                    logger.error("Attempting to kill existing processes and retry...")
                     kill_existing_processes()
                 else:
                     raise
@@ -133,11 +147,10 @@ class NCtrlBMI(BMI):
     def BMI_core_func(self, gui_queue, model=None):
         self.model = model
         while True:
-            with Timer('real-time decoding', verbose=False):
-                bmi_output = self.read_bmi()
+            bmi_output = self.read_bmi()
 
-                if self.mode == 'binner':
-                    self.binner.input(bmi_output)
-                elif self.mode == 'spike':
-                    y = self.dec.predict(bmi_output)
-                    self.output(y)
+            if self.mode == 'binner':
+                self.binner.input(bmi_output)
+            elif self.mode == 'spike':
+                y = self.dec.predict(bmi_output)
+                self.output(y)
