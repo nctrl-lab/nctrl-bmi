@@ -5,6 +5,10 @@ import logging
 import numpy as np
 
 logger = logging.getLogger(__name__)
+log_format = '%(asctime)s %(name)-15s %(levelname)-8s %(message)s'
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter(log_format))
+logger.addHandler(console_handler)
 
 class Laser:
     """
@@ -126,9 +130,9 @@ class Laser:
         try:
             self.ser.write(data)
         except Exception as e:
-            tprint(f"Error writing to serial port: {e}")
+            logger.error(f"Error writing to serial port: {e}")
 
     def close(self):
         """Close the serial connection to the laser device."""
         self.ser.close()
-        tprint('nctrl.output.Laser.close: Laser closed')
+        logger.info('Laser closed')

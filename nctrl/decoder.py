@@ -1,5 +1,9 @@
 import logging
 logger = logging.getLogger(__name__)
+log_format = '%(asctime)s %(name)-15s %(levelname)-8s %(message)s'
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter(log_format))
+logger.addHandler(console_handler)
 
 from spiketag.analysis import Decoder
 

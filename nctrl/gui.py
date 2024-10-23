@@ -1,7 +1,12 @@
 import sys
 import numpy as np
 import logging
+
 logger = logging.getLogger(__name__)
+log_format = '%(asctime)s %(name)-15s %(levelname)-8s %(message)s'
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter(log_format))
+logger.addHandler(console_handler)
 
 try:
     from spiketag.view import raster_view
@@ -185,6 +190,7 @@ class NCtrlGUI(QWidget):
                 self.nctrl.bmi.stop()
             if self.stream_btn.isChecked():
                 self.stream_btn.setChecked(False)
+            logger.info('Stopping BMI')
             self.update_button_state(self.bmi_btn, 'BMI Off', "white")
 
             for i in range(self.layout_setting.count()):
@@ -322,7 +328,9 @@ class NCtrlGUI(QWidget):
         event.accept()
 
 if __name__ == "__main__":
+    logger.info('Starting GUI')
     app = QApplication(sys.argv)
     gui = NCtrlGUI()
     gui.show()
     sys.exit(app.exec_())
+    logger.info('Exiting GUI')
