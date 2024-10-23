@@ -57,7 +57,10 @@ class Laser:
                 If y is an array-like object, it sends a more complex command.
         """
         if isinstance(y, int) and y == 1:
-            self._write_serial(b'a')
+            if self.duration < 25:
+                self._write_serial(b'1')
+            else:
+                self._write_serial(b'a')
         elif isinstance(y, (list, np.ndarray)) and len(y) > 1:
             y_uint16 = np.packbits(y[0].astype(np.uint8)).view(np.uint16)
             self._write_serial(b's' + y_uint16.tobytes())

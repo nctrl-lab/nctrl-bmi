@@ -42,14 +42,14 @@ class NCtrl:
         self.set_bmi(fetfile)
     
     def set_logger(self):
-        log_format = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-8s %(message)s')
+        log_format = '%(asctime)s %(name)-15s %(levelname)-8s %(message)s'
         logging.basicConfig(filename='bmi.log',
                             filemode='w',
                             level=logging.INFO,
                             format=log_format,
                             force=True)
         console_handler = logging.StreamHandler()
-        console_handler.setFormatter(log_format)
+        console_handler.setFormatter(logging.Formatter(log_format))
         logger.addHandler(console_handler)
 
     def set_probe(self, prbfile):
