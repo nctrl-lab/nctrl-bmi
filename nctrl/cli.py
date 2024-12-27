@@ -1,5 +1,6 @@
 import click
-from nctrl import NCtrl, Unit
+from nctrl.core import NCtrl
+from nctrl.unit import Unit
 
 @click.group()
 def main():
