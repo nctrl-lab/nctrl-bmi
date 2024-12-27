@@ -3,6 +3,7 @@
 
 #define ENABLE_PIN 2
 #define LASER_PIN 3
+#define START_PIN 5
 
 // PINS for spike pulses
 // { 15, 14, 18, 19, 0, 1, 21, 20, 23, 22, 16, 17, 13, 11, 12, 10};
@@ -36,6 +37,11 @@ unsigned long spikeTimers = 0;
 const unsigned long SPIKE_DURATION = 500;
 int spikeStates = 0;
 
+// laser start pulse timer
+const unsigned long PULSE_DURATION = 500;
+unsigned long startPulseTime = 0;
+bool pulseActive = false; 
+
 enum LaserState {
     STANDBY,
     LASERON,
@@ -51,6 +57,8 @@ bool enable = false;
 #define enableOff() {digitalWriteFast(ENABLE_PIN, LOW);  enable = false;}
 #define laserOn()   digitalWriteFast(LASER_PIN, HIGH)
 #define laserOff()  digitalWriteFast(LASER_PIN, LOW)
+#define startPulseOn()  digitalWriteFast(START_PIN, HIGH)
+#define startPulseOff() digitalWriteFast(START_PIN, LOW)
 
 void setup() { 
     // Serial.begin() is optional on Teensy.
@@ -72,6 +80,7 @@ void loop() {
     checkSerial();
     checkLaser();
     checkSpike();
+    checkPulse();
 }
 
 void checkSerial() {
@@ -90,7 +99,7 @@ void handleCommand(char cmd) {
             break;
         case 'a': // start laser
             if (enable) {
-                startLaser();
+                startLaserWithPulse();
             }
             break;
         case 'A': // abort laser
@@ -128,6 +137,16 @@ void laserPulse() {
     state = PULSE;
     startTime = now;
     laserOn();
+}
+
+// Function to start the laser and generate a pulse on START_PIN
+void startLaserWithPulse() {
+    startLaser();  // Start the laser as usual
+
+    // Generate a single pulse on START_PIN
+    startPulseOn();
+    startPulseTime = now;  // 500 µs pulse width (adjust as needed)
+    pulseActive = true;
 }
 
 void startLaser() {
@@ -197,6 +216,12 @@ void checkSpike() {
     }
 }
 
+void checkPulse() {
+    if (pulseActive && (now - startPulseTime >= PULSE_DURATION)) {  // 500 µs pulse duration
+        startPulseOff();
+        pulseActive = false;  // Mark the pulse as inactive
+    }
+}
 // ============================================================
 // =============== For direct port manipulation ===============
 // ============================================================
