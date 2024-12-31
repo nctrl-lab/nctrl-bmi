@@ -13,6 +13,7 @@ class Teensy:
     
     def start(self):
         self.start_time = time.monotonic()
+        self.i_try = 0
         self.open()
         for _ in range(3):
             try:
@@ -27,7 +28,7 @@ class Teensy:
             self.i_try += 1
             self.ser.write(b'1')
             elapsed = time.monotonic() - self.start_time
-            status = f"\rTry {self.i_try} at {elapsed:.2f}s"
+            status = f"\rTry {self.i_try} at {elapsed:.2f} s"
             print(status, end="", flush=True)
             time.sleep(0.5)
 
