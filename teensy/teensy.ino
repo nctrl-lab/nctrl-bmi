@@ -5,45 +5,22 @@
 #define LASER_PIN 3
 #define START_PIN 5
 
-// PINS for spike pulses
-// { 15, 14, 18, 19, 0, 1, 21, 20, 23, 22, 16, 17, 13, 11, 12, 10};
-#define lsb0_3mask_8bit     0x0f             //                               0000 1111 in binary
-#define lsb4_7mask_8bit     0xf0             //                               1111 0000 in binary
-#define lsb4_9mask_16bit    0x03f0           //                     0000 0011 1111 0000 in binary
-#define lsb10_11mask_16bit  0x0c00           //                     0000 1100 0000 0000 in binary
-#define lsb12_15mask_16bit  0xf000           //                     1111 0000 0000 0000 in binary
-#define lsb16_18mask_32bit  0x00070000       // 0000 0000 0000 0111 0000 0000 0000 0000 in binary
-#define lsb19_19mask_32bit  0x00080000       // 0000 0000 0000 1000 0000 0000 0000 0000 in binary
-#define lsb20_21mask_32bit  0x00300000       // 0000 0000 0011 0000 0000 0000 0000 0000 in binary
-#define lsb22_23mask_32bit  0x00c00000       // 0000 0000 1100 0000 0000 0000 0000 0000 in binary
-
-#define safe_clear6_8bit(n)  (n & 0xfc30ffff)// 1111 1100 0011 0000 1111 1111 1111 1111 in binary
-#define safe_clear6_10bit(n) (n & 0xf030ffff)// 1111 0000 0011 0000 1111 1111 1111 1111 in binary
-#define safe_clear6_12bit(n) (n & 0xf030fff3)// 1111 0000 0011 0000 1111 1111 1111 0011 in binary
-#define safe_clear7_4bit(n)  (n & 0xfffffff0)// 1111 1111 1111 1111 1111 1111 1111 0000 in binary
-#define safe_clear7_8bit(n)  (n & 0xfffcf3f0)// 1111 1111 1111 1100 1111 0011 1111 0000 in binary
-#define safe_clear9_4bit(n)  (n & 0xfffffe8f)// 1111 1111 1111 1111 1111 1110 1000 1111 in binary 
-
 // laser timer
-const unsigned long LASER_DURATION = 5000; // 5 ms
-const unsigned long INTERVAL_DURATION = 20000; // 20 ms
-unsigned long finishDuration = 500000; // 0.5 seconds
+const unsigned long LASER_PULSE_DURATION = 5000; // 5 ms
+const unsigned long LASER_INTERVAL_DURATION = 20000; // 20 ms
+unsigned long laserFinishDuration = 500000; // 0.5 seconds
+unsigned long laserLatency = 0;
+
 unsigned long now = 0;
-unsigned long startTime = 0;
-unsigned long intervalTime = 0;
+unsigned long laserStartTime = 0;
+unsigned long laserIntervalTime = 0;
 
-// spike timer
-unsigned long spikeTimers = 0;
-const unsigned long SPIKE_DURATION = 500;
-int spikeStates = 0;
-
-// laser start pulse timer
-const unsigned long PULSE_DURATION = 500;
-unsigned long startPulseTime = 0;
-bool pulseActive = false; 
+// start state
+bool startState = false; 
 
 enum LaserState {
     STANDBY,
+    WAITING,
     LASERON,
     LASEROFF,
     DONE,
@@ -53,34 +30,28 @@ enum LaserState {
 LaserState state = STANDBY;
 bool enable = false;
 
+// Fast digital write macros for better performance
 #define enableOn()  {digitalWriteFast(ENABLE_PIN, HIGH); enable = true;}
 #define enableOff() {digitalWriteFast(ENABLE_PIN, LOW);  enable = false;}
-#define laserOn()   digitalWriteFast(LASER_PIN, HIGH)
-#define laserOff()  digitalWriteFast(LASER_PIN, LOW)
-#define startPulseOn()  digitalWriteFast(START_PIN, HIGH)
-#define startPulseOff() digitalWriteFast(START_PIN, LOW)
+#define laserOn()   {digitalWriteFast(LASER_PIN, HIGH); digitalWriteFast(LED_BUILTIN, HIGH);}
+#define laserOff()  {digitalWriteFast(LASER_PIN, LOW); digitalWriteFast(LED_BUILTIN, LOW);}
+#define startOn()   digitalWriteFast(START_PIN, HIGH)
+#define startOff()  digitalWriteFast(START_PIN, LOW)
 
 void setup() { 
-    // Serial.begin() is optional on Teensy.
-    // USB hardware initialization is performed before setup() runs.
-    // The baud rate input is ignored and only used for Arduino compatibility.
-    // USB serial communication always occurs at full USB speed.
-    // Serial.begin() may wait up to 2.5 seconds for USB serial communication to be ready.
-    // For fastest program startup, do not use this unnecessary function.
-    // Its only purpose is for compatibility with programs written for Arduino.
-    // The delay is intended for programs which do not test the Serial boolean.
-
-    set_16bit(OUTPUT);
+    Serial.begin(115200);
     pinMode(ENABLE_PIN, OUTPUT);
     pinMode(LASER_PIN, OUTPUT);
+    pinMode(START_PIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
+    reset();
+    printHelp();
 }
 
 void loop() {
     now = micros();
     checkSerial();
     checkLaser();
-    checkSpike();
-    checkPulse();
 }
 
 void checkSerial() {
@@ -88,6 +59,14 @@ void checkSerial() {
         char cmd = Serial.read();
         handleCommand(cmd);
     }
+}
+
+void reset() {
+    state = STANDBY;
+    startState = false;
+    laserOff();
+    enableOff();
+    startOff();
 }
 
 void handleCommand(char cmd) {
@@ -99,7 +78,8 @@ void handleCommand(char cmd) {
             break;
         case 'a': // start laser
             if (enable) {
-                startLaserWithPulse();
+                toggleStart();
+                startLaser();
             }
             break;
         case 'A': // abort laser
@@ -110,7 +90,7 @@ void handleCommand(char cmd) {
             Serial.println("Laser enabled");
             break;
         case 'E': // disable laser
-            laserOff();
+            reset();
             enableOff();
             Serial.println("Laser disabled");
             break;
@@ -127,37 +107,62 @@ void handleCommand(char cmd) {
         case 'd':
             setLaserDuration();
             break;
-        case 's':
-            readSpike();
+        case 'l':
+            setLaserLatency();
+            break;
+        case 'p':
+            printParams();
+            break;
+        case 'h':
+            printHelp();
             break;
     }
 }
 
+void printHelp() {
+    Serial.println("========== Commands ==========");
+    Serial.println("1: single pulse");
+    Serial.println("a: start laser");
+    Serial.println("A: abort laser");
+    Serial.println("e: enable laser");
+    Serial.println("E: disable laser");
+    Serial.println("c: constantly on");
+    Serial.println("C: constantly off");
+    Serial.println("d: set laser duration");
+    Serial.println("l: set laser latency");
+    Serial.println("p: print params");
+    Serial.println("h: print help");
+}
+
+void printParams() {
+    Serial.println("Laser duration: " + String(laserFinishDuration));
+    Serial.println("Laser latency: " + String(laserLatency));
+    Serial.println("Laser pulse duration: " + String(LASER_PULSE_DURATION));
+    Serial.println("Laser interval duration: " + String(LASER_INTERVAL_DURATION));
+    Serial.println("ENABLE PIN: " + String(ENABLE_PIN));
+    Serial.println("LASER PIN: " + String(LASER_PIN));
+    Serial.println("START PIN: " + String(START_PIN));
+}
+
 void laserPulse() {
     state = PULSE;
-    startTime = now;
+    laserStartTime = now;
     laserOn();
 }
 
-// Function to start the laser and generate a pulse on START_PIN
-void startLaserWithPulse() {
-    startLaser();  // Start the laser as usual
-
-    // Generate a single pulse on START_PIN
-    startPulseOn();
-    startPulseTime = now;  // 500 µs pulse width (adjust as needed)
-    pulseActive = true;
+void toggleStart() {
+    startState = !startState;
+    if (startState) {
+        startOn();
+    } else {
+        startOff();
+    }
 }
 
 void startLaser() {
-    if (state == STANDBY || state == DONE) {
-        state = LASERON;
-        startTime = now;
-        intervalTime = now;
-        laserOn();
-    } else {
-        startTime = now; // just make it longer
-    }
+    laserOff();
+    state = WAITING;
+    laserStartTime = now;
 }
 
 void abortLaser() {
@@ -167,32 +172,47 @@ void abortLaser() {
 
 void setLaserDuration() {
     int duration = Serial.parseInt(); // read in ms ## this can be very slow (~1s)!!!
-    finishDuration = duration * 1000; // write in us
+    laserFinishDuration = duration * 1000UL; // write in us
     Serial.print("Laser duration is set to " + String(duration));
+    Serial.println(" ms");
+}
+
+void setLaserLatency() {
+    int latency = Serial.parseInt(); // read in ms ## this can be very slow (~1s)!!!
+    laserLatency = latency * 1000UL; // write in us
+    Serial.print("Laser latency is set to " + String(latency));
     Serial.println(" ms");
 }
 
 void checkLaser() {
     switch (state) {
+        case WAITING:
+            if (now - laserStartTime >= laserLatency) {
+                state = LASERON;
+                laserStartTime = now;
+                laserIntervalTime = now;
+                laserOn();
+            }
+            break;
         case LASERON:
-            if (now - startTime >= finishDuration) {
+            if (now - laserStartTime >= laserFinishDuration) {
                 state = DONE;
                 laserOff();
-            } else if (now - intervalTime >= LASER_DURATION) {
+            } else if (now - laserIntervalTime >= LASER_PULSE_DURATION) {
                 state = LASEROFF;
-                intervalTime = now;
+                laserIntervalTime = now;
                 laserOff();
             }
             break;
         case LASEROFF:
-            if (now - intervalTime >= INTERVAL_DURATION) {
+            if (now - laserIntervalTime >= LASER_INTERVAL_DURATION) {
                 state = LASERON;
-                intervalTime = now;
+                laserIntervalTime = now;
                 laserOn();
             }
             break;
         case PULSE:
-            if (now - startTime >= finishDuration) {
+            if (now - laserStartTime >= laserFinishDuration) {
                 state = DONE;
                 laserOff();
             }
@@ -200,49 +220,4 @@ void checkLaser() {
         default:
             break;
     }
-}
-
-void readSpike() {
-    uint16_t data = Serial.read() | (Serial.read() << 8);
-    safe_write_16bit(data);
-    spikeTimers = now;
-    spikeStates = 1;
-}
-
-void checkSpike() {
-    if (spikeStates == 1 && now - spikeTimers >= SPIKE_DURATION) {
-        spikeStates = 0;
-        safe_write_16bit(0);
-    }
-}
-
-void checkPulse() {
-    if (pulseActive && (now - startPulseTime >= PULSE_DURATION)) {  // 500 µs pulse duration
-        startPulseOff();
-        pulseActive = false;  // Mark the pulse as inactive
-    }
-}
-// ============================================================
-// =============== For direct port manipulation ===============
-// ============================================================
-void set_16bit(uint8_t mode) {
-  const int pins[16] = { 15, 14, 18, 19, 0, 1, 21, 20, 23, 22, 16, 17, 13, 11, 12, 10};
-  for (int i = 0; i < 16; i++)
-    pinMode(pins[i], mode);
-}
-
-inline uint16_t read_16bit() {
-  uint32_t data0 = GPIO6_DR;
-  uint32_t data1 = GPIO7_DR;
-  return (data1 & lsb0_3mask_8bit) | ((data0 >> 18) & lsb4_9mask_16bit) | ((data0 << 8) & lsb10_11mask_16bit) | ((data0 >> 4) & lsb12_15mask_16bit);
-}
-
-inline void write_16bit(uint16_t data) {
-  GPIO6_DR = ((data & lsb4_9mask_16bit) << 18) | ((data & lsb10_11mask_16bit) >> 8) | ((data & lsb12_15mask_16bit) << 4);
-  GPIO7_DR = (data & lsb0_3mask_8bit);
-}
-
-inline void safe_write_16bit(uint16_t data) {
-  GPIO6_DR = safe_clear6_12bit(GPIO6_DR) | ((data & lsb4_9mask_16bit) << 18) | ((data & lsb10_11mask_16bit) >> 8) | ((data & lsb12_15mask_16bit) << 4);
-  GPIO7_DR = safe_clear7_4bit(GPIO7_DR)  |  (data & lsb0_3mask_8bit);
 }
