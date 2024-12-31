@@ -33,8 +33,8 @@ bool enable = false;
 // Fast digital write macros for better performance
 #define enableOn()  {digitalWriteFast(ENABLE_PIN, HIGH); enable = true;}
 #define enableOff() {digitalWriteFast(ENABLE_PIN, LOW);  enable = false;}
-#define laserOn()   {digitalWriteFast(LASER_PIN, HIGH); digitalWriteFast(BUILTIN_LED, HIGH);}
-#define laserOff()  {digitalWriteFast(LASER_PIN, LOW); digitalWriteFast(BUILTIN_LED, LOW);}
+#define laserOn()   {digitalWriteFast(LASER_PIN, HIGH); digitalWriteFast(LED_BUILTIN, HIGH);}
+#define laserOff()  {digitalWriteFast(LASER_PIN, LOW); digitalWriteFast(LED_BUILTIN, LOW);}
 #define startOn()   digitalWriteFast(START_PIN, HIGH)
 #define startOff()  digitalWriteFast(START_PIN, LOW)
 
@@ -43,7 +43,7 @@ void setup() {
     pinMode(ENABLE_PIN, OUTPUT);
     pinMode(LASER_PIN, OUTPUT);
     pinMode(START_PIN, OUTPUT);
-    pinMode(BUILTIN_LED, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     reset();
     printHelp();
 }
