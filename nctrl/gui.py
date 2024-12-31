@@ -108,12 +108,18 @@ class NCtrlGUI(QWidget):
 
         # laser settings
         self.laser_duration_btn = QComboBox()
-        self.laser_duration_btn.addItems(["1", "5", "10", "100", "500"])
+        self.laser_duration_btn.addItems(["1", "2", "5", "10", "20", "50", "100", "200", "500"])
         self.laser_duration_btn.currentIndexChanged.connect(self.laser_duration_toggle)
-        self.laser_duration_btn.setCurrentIndex(1)
+        self.laser_duration_btn.setCurrentIndex(6)
+
+        self.laser_latency_btn = QComboBox()
+        self.laser_latency_btn.addItems(["0", "10", "20", "50", "100", "200", "500"])
+        self.laser_latency_btn.currentIndexChanged.connect(self.laser_latency_toggle)
+        self.laser_latency_btn.setCurrentIndex(3)
 
         self.layout_laser = QFormLayout()
         self.layout_laser.addRow("Laser duration (ms)", self.laser_duration_btn)
+        self.layout_laser.addRow("Laser latency (ms)", self.laser_latency_btn)
 
         # main layout
         layout_btn = QGridLayout()
@@ -266,6 +272,11 @@ class NCtrlGUI(QWidget):
 
         for spin in [self.B_btn, self.nspike_btn]:
             spin.valueChanged.connect(self.update_fr)
+        
+        # Set default values
+        self.bin_menu.setCurrentIndex(3)
+        self.B_btn.setValue(10)
+        self.nspike_btn.setValue(1)
 
         self.layout_setting.addRow("Unit ID", self.unit_selector)
         self.layout_setting.addRow("Bin size (s)", self.bin_menu)
@@ -318,6 +329,12 @@ class NCtrlGUI(QWidget):
         logger.info(f"Laser duration: {self.laser_duration} ms")
         if self.nctrl:
             self.nctrl.output.set_duration(self.laser_duration)
+
+    def laser_latency_toggle(self):
+        self.laser_latency = int(self.laser_latency_btn.currentText())
+        logger.info(f"Laser latency: {self.laser_latency} ms")
+        if self.nctrl:
+            self.nctrl.output.set_latency(self.laser_latency)
     
     def closeEvent(self, event):
         if self.nctrl:
