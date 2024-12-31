@@ -45,7 +45,7 @@ class NCtrlGUI(QWidget):
         self.view_timer = QtCore.QTimer(self) if nctrl else None
         if self.view_timer:
             self.view_timer.timeout.connect(self.view_update)
-            self.update_interval = 60
+            self.update_interval = 500
 
         # Parameters
         self.decoder = None
