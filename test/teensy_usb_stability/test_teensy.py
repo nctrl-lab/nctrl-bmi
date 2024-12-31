@@ -33,10 +33,6 @@ class Teensy:
             print(status, end="", flush=True)
             time.sleep(0.5)
 
-    def __enter__(self):
-        self.open()
-        return self
-    
     def __exit__(self, *_):
         self.close()
         
