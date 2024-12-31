@@ -198,7 +198,6 @@ void checkLaser() {
             if (now - laserStartTime >= laserFinishDuration) {
                 state = DONE;
                 laserOff();
-                durationOff();
             } else if (now - laserIntervalTime >= LASER_PULSE_DURATION) {
                 state = LASEROFF;
                 laserIntervalTime = now;
@@ -216,7 +215,6 @@ void checkLaser() {
             if (now - laserStartTime >= laserFinishDuration) {
                 state = DONE;
                 laserOff();
-                durationOff();
             }
             break;
         default:
