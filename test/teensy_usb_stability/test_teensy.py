@@ -8,20 +8,28 @@ class Teensy:
         self.ser = None
         with self:
             self.start()
+        self.i_try = 0
+        self.start_time = 0
     
     def start(self):
-        i_try = 0
-        start_time = time.monotonic()
-        try:
-            while True:
-                i_try += 1
-                self.ser.write(b'1')
-                elapsed = time.monotonic() - start_time
-                status = f"\rTry {i_try} at {elapsed:.2f}s"
-                print(status, end="", flush=True)
-                time.sleep(0.5)
-        except Exception as e:
-            print(f"\nError: {e}")
+        self.start_time = time.monotonic()
+        self.open()
+        for _ in range(3):
+            try:
+                self.run()
+            except Exception as e:
+                print(f"\nError: {e}")
+                self.close()
+                self.open()
+    
+    def run(self):
+        while True:
+            self.i_try += 1
+            self.ser.write(b'1')
+            elapsed = time.monotonic() - self.start_time
+            status = f"\rTry {self.i_try} at {elapsed:.2f}s"
+            print(status, end="", flush=True)
+            time.sleep(0.5)
 
     def __enter__(self):
         self.open()
@@ -31,6 +39,7 @@ class Teensy:
         self.close()
         
     def open(self):
+        start_time = time.monotonic()
         port = self.find_port()
         self.ser = serial.Serial(
             port=port,
@@ -41,14 +50,18 @@ class Teensy:
         )
         self.ser.reset_input_buffer()
         self.ser.reset_output_buffer()
-        print(f"Opened Teensy on {port}")
+        elapsed = time.monotonic() - start_time
+        print(f"Opened Teensy on {port} in {elapsed:.2f}s")
     
     def close(self):
         if self.ser:
-            port = self.ser.port
-            self.ser.close()
-            self.ser = None
-            print(f"Closed Teensy on {port}")
+            try:
+                port = self.ser.port
+                self.ser.close()
+                self.ser = None
+                print(f"Closed Teensy on {port}")
+            except Exception as e:
+                print(f"Error closing Teensy: {e}")
 
     @staticmethod
     def find_port():
