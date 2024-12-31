@@ -6,10 +6,11 @@ import time
 class Teensy:
     def __init__(self):
         self.ser = None
-        with self:
-            self.start()
         self.i_try = 0
         self.start_time = 0
+
+        with self:
+            self.start()
     
     def start(self):
         self.start_time = time.monotonic()
