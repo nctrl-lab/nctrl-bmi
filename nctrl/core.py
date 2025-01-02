@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QApplication
 logger = logging.getLogger(__name__)
 
 from spiketag.base import probe
-from spiketag.realtime import BMI
+from spiketag.realtime import BMI, Binner
 
 from nctrl.decoder import *
 from nctrl.output import Laser
@@ -154,3 +154,8 @@ class NCtrlBMI(BMI):
             elif self.mode == 'spike':
                 y = self.dec.predict(bmi_output)
                 self.output(y)
+    
+    def set_fr_binner(self, bin_size=1, B_bins=1800, exclude_noise=True):
+        N_units = self.fpga.n_units + 1
+        self.fr_binner = Binner(bin_size, N_units, B_bins, exclude_first_unit=exclude_noise)
+        logger.info('BMI fr binner: {} bins {} units, each bin is {} seconds'.format(B_bins, N_units, bin_size))  

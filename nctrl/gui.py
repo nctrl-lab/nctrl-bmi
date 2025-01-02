@@ -163,12 +163,14 @@ class NCtrlGUI(QWidget):
                 # Decoder settings
                 if self.decoder == 'fr':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
+                    self.nctrl.bmi.set_fr_binner()
                     self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, nspike=self.nspike)
                     logger.info(f"Fr BMI: bin size {self.bin_size} s, Bin number {self.B_bins}")
                     logger.info(f"Unit ID: {unit_id}, threshold {self.nspike_btn.value()}")
                     logger.info(f"Laser duration: {self.laser_duration} ms")
                 elif self.decoder == 'spikes':
+                    self.nctrl.bmi.set_fr_binner()
                     self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
                     unit_ids = np.array([int(item.text()) for item in self.unit_selector.selectedItems()], dtype=int)
                     self.nctrl.set_decoder(decoder=self.decoder, unit_ids=unit_ids)
