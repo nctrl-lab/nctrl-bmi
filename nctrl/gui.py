@@ -28,7 +28,6 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QFormLayout,
     QSpinBox,
-    QDoubleSpinBox,
     QRadioButton,
     QLabel,
     QComboBox,
@@ -86,19 +85,19 @@ class NCtrlGUI(QWidget):
 
         # decoder settings
         self.decoder_fr_btn = QRadioButton("FR")
-        self.decoder_spikes_btn = QRadioButton("Spikes")
         self.decoder_single_btn = QRadioButton("Single Spike")
+        self.decoder_dynamic_btn = QRadioButton("Dynamic FR")
         self.decoder_print_btn = QRadioButton("Print")
 
         self.decoder_fr_btn.toggled.connect(self.decoder_changed)
-        self.decoder_spikes_btn.toggled.connect(self.decoder_changed)
         self.decoder_single_btn.toggled.connect(self.decoder_changed)
+        self.decoder_dynamic_btn.toggled.connect(self.decoder_changed)
         self.decoder_print_btn.toggled.connect(self.decoder_changed)
         
         self.layout_decoder = QHBoxLayout()
         self.layout_decoder.addWidget(self.decoder_fr_btn)
         self.layout_decoder.addWidget(self.decoder_single_btn)
-        self.layout_decoder.addWidget(self.decoder_spikes_btn)
+        self.layout_decoder.addWidget(self.decoder_dynamic_btn)
         self.layout_decoder.addWidget(self.decoder_print_btn)
 
         # decoder settings
@@ -163,22 +162,32 @@ class NCtrlGUI(QWidget):
                 # Decoder settings
                 if self.decoder == 'fr':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
-                    self.nctrl.bmi.set_fr_binner()
-                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
+                    self.nctrl.bmi.set_fr_binner(bin_size=5, B_bins=360, id=unit_id)
+                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins, id=unit_id)
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, nspike=self.nspike)
                     logger.info(f"Fr BMI: bin size {self.bin_size} s, Bin number {self.B_bins}")
                     logger.info(f"Unit ID: {unit_id}, threshold {self.nspike_btn.value()}")
                     logger.info(f"Laser duration: {self.laser_duration} ms")
-                elif self.decoder == 'spikes':
-                    self.nctrl.bmi.set_fr_binner()
-                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
-                    unit_ids = np.array([int(item.text()) for item in self.unit_selector.selectedItems()], dtype=int)
-                    self.nctrl.set_decoder(decoder=self.decoder, unit_ids=unit_ids)
+
+                elif self.decoder == 'dynamic':
+                    unit_id = int(self.unit_selector.selectedItems()[0].text())
+                    target_fr = float(self.target_btn.currentText())
+                    self.nctrl.bmi.set_fr_binner(bin_size=5, B_bins=360, id=unit_id)
+                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B2_bins, id=unit_id)
+                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, target_fr=target_fr, bin_size=self.bin_size, B_bins=self.B_bins)
+
+                    logger.info(f"Fr BMI: bin size {self.bin_size} s, Bin number (threshold) {self.B_bins}, monitor {self.B2_bins}")
+                    logger.info(f"Unit ID: {unit_id}, target FR {target_fr} Hz")
+                    logger.info(f"Laser latency: {self.laser_latency} ms")
+                    logger.info(f"Laser duration: {self.laser_duration} ms")
+
                 elif self.decoder == 'single':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id)
                     logger.info(f"Single spike BMI: Unit ID {unit_id}")
+                    logger.info(f"Laser latency: {self.laser_latency} ms")
                     logger.info(f"Laser duration: {self.laser_duration} ms")
+
                 elif self.decoder == 'print':
                     self.nctrl.set_decoder(decoder=self.decoder)
                     logger.info('Printing BMI messages')
@@ -241,10 +250,10 @@ class NCtrlGUI(QWidget):
             self.decoder = 'single'
             self.set_single_layout()
             logger.info('Single spike decoder selected')
-        elif self.decoder_spikes_btn.isChecked():
-            self.decoder = 'spikes'
-            self.set_spikes_layout()
-            logger.info('Spikes decoder selected')
+        elif self.decoder_dynamic_btn.isChecked():
+            self.decoder = 'dynamic'
+            self.set_dynamic_layout()
+            logger.info('Dynamic FR decoder selected')
         elif self.decoder_print_btn.isChecked():
             self.decoder = 'print'
             self.set_print_layout()
@@ -259,7 +268,7 @@ class NCtrlGUI(QWidget):
 
         self.unit_selector = QListWidget()
         self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
-        for i in range(1, n_unit + 1):  # Up to 16 units
+        for i in range(1, n_unit + 1):
             self.unit_selector.addItem(f"{i}")
         self.unit_selector.setToolTip("Select a unit to generate spikes.")
 
@@ -294,6 +303,11 @@ class NCtrlGUI(QWidget):
         self.nspike = self.nspike_btn.value()
         self.B_bins = self.B_btn.value()
         self.fr_btn.setText(f"{self.nspike / self.bin_size / self.B_bins:.2f} Hz")
+    
+    def update_duration(self):
+        self.bin_size = float(self.bin_menu.currentText())
+        self.B2_bins = self.B2_btn.value()
+        self.duration_btn.setText(f"{self.B2_bins * self.bin_size:.2f} s")
 
     # Single spike decoder setting
     def set_single_layout(self):
@@ -305,20 +319,47 @@ class NCtrlGUI(QWidget):
         self.unit_selector.setToolTip("Select a unit to generate spikes.")
         self.layout_setting.addRow("Unit ID", self.unit_selector)
 
-    # Spikes decoder setting
-    def set_spikes_layout(self):
+    # Dynamic FR decoder setting
+    def set_dynamic_layout(self):
         n_unit = self.nctrl.n_units if self.nctrl else 10
-        self.unit_selector = QListWidget()
-        self.unit_selector.setSelectionMode(QListWidget.MultiSelection)
-        for i in range(1, n_unit + 1):  # Up to 16 units
-            self.unit_selector.addItem(f"{i}")
-        self.unit_selector.setToolTip("Select units to generate spikes.")
 
-        self.bin_size = 0.0004
-        self.B_bins = 1
-        self.nspike = 1
+        self.unit_selector = QListWidget()
+        self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
+        for i in range(1, n_unit + 1):
+            self.unit_selector.addItem(f"{i}")
+        self.unit_selector.setToolTip("Select a unit to generate spikes.")
+
+        self.bin_menu = QComboBox()
+        self.bin_menu.addItems(["0.0004", "0.001", "0.010", "0.100"])
+        self.bin_menu.currentIndexChanged.connect(self.bin_toggle)
+
+        self.B_btn = QSpinBox(minimum=1, maximum=100, value=10)
+        self.B2_btn = QSpinBox(minimum=1, maximum=1000, value=600)
+        self.nspike_btn = QSpinBox(minimum=1, maximum=100, value=1)
+        self.target_btn = QComboBox()
+        self.target_btn.addItems(["0.2", "0.4", "0.6", "0.8", "1.0"])
+        self.target_btn.setCurrentIndex(0)
+
+        self.duration_btn = QLabel("60 s")
+        self.fr_btn = QLabel("1.0 Hz")
+
+        self.bin_menu.currentIndexChanged.connect(self.update_duration)
+        self.B2_btn.valueChanged.connect(self.update_duration)
+        
+        # Set default values
+        self.bin_menu.setCurrentIndex(3)
+        self.B_btn.setValue(10)
+        self.B2_btn.setValue(600)
+        self.nspike_btn.setValue(1)
 
         self.layout_setting.addRow("Unit ID", self.unit_selector)
+        self.layout_setting.addRow("Target laser rate (Hz)", self.target_btn)
+        self.layout_setting.addRow("Bin size (s)", self.bin_menu)
+        self.layout_setting.addRow("Bin count threshold", self.B_btn)
+        self.layout_setting.addRow("Bin count monitor", self.B2_btn)
+        self.layout_setting.addRow("Duration (s)", self.duration_btn)
+        self.layout_setting.addRow("Spike count", self.nspike_btn)
+        self.layout_setting.addRow("Fr", self.fr_btn)
 
     # Print decoder setting
     def set_print_layout(self):

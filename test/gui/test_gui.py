@@ -1,3 +1,4 @@
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -6,7 +7,9 @@ from PyQt5.QtCore import Qt, QThread, QTimer
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QPushButton
 
-from .view import fr_view
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../nctrl')))
+
+from view import fr_view
 from spiketag.base import CLU
 
 class GUI(QWidget):
