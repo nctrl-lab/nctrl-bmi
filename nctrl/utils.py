@@ -51,7 +51,7 @@ class CircularBuffer:
     roll(shift=-1)
         Rotate buffer position by shift steps
     step(shift=-1)
-        Rotate buffer and zero the new position
+        Rotate buffer and zero the new positions
     """
     def __init__(self, size):
         self.buffer = np.zeros(size, dtype=np.int16)
@@ -95,9 +95,26 @@ class CircularBuffer:
     def roll(self, shift=-1):
         self.index = (self.index - shift) % self.length
     
-    def step(self, shift=-1):
-        self.roll(shift)
-        self.buffer[self.index] = 0
+    def step(self, steps=1):
+        """Rotate buffer by step positions and zero the new positions.
+        
+        Efficiently zeros out elements and updates buffer position in a single pass.
+        Handles both positive and negative shifts with clear, vectorized operations.
+        
+        Parameters
+        ----------
+        steps : int, default 1
+            Number of positions to rotate buffer. Positive steps move forward,
+            negative steps move backward.
+        """
+        start_idx = self.index + (1 if steps > 0 else -1)
+        end_idx = self.index + steps + (1 if steps > 0 else -1)
+        step = 1 if steps > 0 else -1
+        
+        indices = np.unique(np.mod(np.arange(start_idx, end_idx, step), self.length))
+
+        self.buffer[indices] = 0
+        self.index = (self.index + steps) % self.length
 
 
 class FastBinner(EventEmitter):
@@ -156,7 +173,7 @@ class FastBinner(EventEmitter):
         
         if current_bin != self.last_bin:
             self.emit('decode', X=self.output)
-            self.count_vec.step()
+            self.count_vec.step(steps=current_bin - self.last_bin)
             self.last_bin = current_bin
             
         if self.id is None:

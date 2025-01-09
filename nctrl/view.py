@@ -1,11 +1,7 @@
-# GUIs for visualizing firing rate, and features.
-
-import numpy as np
-from scipy import signal
 from vispy import scene
-
 import matplotlib as mpl
-
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton
+from PyQt5 import QtCore
 
 class LineView(scene.SceneCanvas):
     def __init__(self):
@@ -20,6 +16,7 @@ class LineView(scene.SceneCanvas):
         # Initialize line collections
         self.lines = []
         self.line_colors = mpl.colormaps.get_cmap('Set3').colors
+        self.n_colors = len(self.line_colors)
         
         self._setup_axes()
         self.freeze()
@@ -44,71 +41,94 @@ class LineView(scene.SceneCanvas):
         self.xaxis.link_view(self.view)
         self.yaxis.link_view(self.view)
     
-    def set_data(self, positions):
+    def set_data(self, positions, colors=None, width=1):
         """Set line data and update view
         
         Parameters
         ----------
         positions : array-like
             List of position arrays for each line
+        colors : array-like, optional
+            List of colors for each line. If None, cycles through colors.
         """
         self.clear()
-        n_colors = len(self.line_colors)
+        
         for i, pos in enumerate(positions):
-            color = self.line_colors[i % n_colors]
-            line = scene.visuals.Line(pos=pos, color=color, width=2, parent=self.view.scene)
-            self.lines.append(line)
+            line_color = colors[i] if colors else self.line_colors[i % self.n_colors]
+            self.lines.append(
+                scene.visuals.Line(pos=pos, color=line_color, width=width, parent=self.view.scene)
+            )
             
         self.view.camera.set_range()
-    
+
     def clear(self):
         """Remove all lines from view"""
         for line in self.lines:
             line.parent = None
         self.lines.clear()
 
+
 class FrView(LineView):
-    def __init__(self, fs=25e3):
+    def __init__(self, bin_size=5.0):
         super().__init__()
 
-        self._fs = fs
-        self._time_tick = 1
-        self._spike_time = np.array([])
+        self.unfreeze()
+        self.bin_size = bin_size
+        self.freeze()
 
-    def add_data(self, spk_time=None):
-        self._spike_time = np.append(self._spike_time, spk_time)
-        self._draw()
-    
-    def set_data(self, spk_times=None):
-        self._spike_time = spk_times
-        self._draw()
-    
-    def _convolve(self):
-        times = (self._spike_time / int(self._fs * self._time_tick)).astype(int)
-        counts = np.bincount(times) * int(1/self._time_tick)
-        kernel = signal.gaussian(20, std=5)
-        kernel /= kernel.sum()
-        fr =  signal.convolve(counts, kernel, mode='valid')
-        return fr
-    
-    def _draw(self):
-        poses = []
-        colors = []
+    def set_data(self, data):
+        if data.ndim == 1:
+            data = data.reshape(-1, 1)
 
-        rate = self._convolve()
-        x = np.arange(1, rate.shape[0] + 1)
-        y = rate
-        color = np.hstack((palette[1], 1))
-        pos = np.column_stack((x, y))
-        poses.append(pos)
-        colors.append(color)
+        x = np.arange(data.shape[0]) * self.bin_size
+        y = data / self.bin_size
 
-        super().set_data(poses, colors)
+        positions = [np.column_stack((x, y[:, i])) for i in range(y.shape[1])]
+        super().set_data(positions)
+
+
+class FrGUI(QWidget):
+
+    def __init__(self):
+        super().__init__()
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update)
+
+        self.btn = QPushButton('Start')
+        self.btn.setCheckable(True) 
+        self.btn.toggled.connect(self.start)
+
+        self.plot = FrView()
+
+        layout_main = QVBoxLayout()
+        layout_main.addWidget(self.btn)
+        layout_main.addWidget(self.plot.native)
+        self.setLayout(layout_main)
+
+        self.data = None
+        self.time = 0
+
+    def set_data(self, pos):
+        self.data = pos
+    
+    def update(self):
+        self.plot.set_data(self.data[self.time:self.time+360])
+        self.time += 1
+
+    def start(self, state):
+        if state:
+            self.timer.start(1000)
+        else:
+            self.timer.stop()
 
 if __name__ == '__main__':
+    import numpy as np
     from PyQt5.QtWidgets import QApplication
 
+    data = np.random.randn(100000)
+
     app = QApplication([])
-    view = LineView()
-    view.show()
+    gui = FrGUI()
+    gui.set_data(data)
+    gui.show()
     app.exec_()
