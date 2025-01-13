@@ -50,6 +50,8 @@ class NCtrlGUI(QWidget):
         self.decoder = None
         self.bin_size = 0.00004
         self.B_bins = 1
+        self.B2_bins = 1
+        self.direction = 'up'
         self.nspike = 1
 
         self.init_gui()
@@ -172,9 +174,10 @@ class NCtrlGUI(QWidget):
                 elif self.decoder == 'dynamic':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
                     target_fr = float(self.target_btn.currentText())
+                    direction = self.direction_btn.currentText()
                     self.nctrl.bmi.set_fr_binner(bin_size=5, B_bins=360, id=unit_id)
-                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B2_bins, id=unit_id)
-                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, target_fr=target_fr, bin_size=self.bin_size, B_bins=self.B_bins)
+                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins, id=unit_id)
+                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, target_fr=target_fr, bin_size=self.bin_size, B_bins=self.B_bins, B2_bins=self.B2_bins, direction=direction)
 
                     logger.info(f"Fr BMI: bin size {self.bin_size} s, Bin number (threshold) {self.B_bins}, monitor {self.B2_bins}")
                     logger.info(f"Unit ID: {unit_id}, target FR {target_fr} Hz")
@@ -333,12 +336,15 @@ class NCtrlGUI(QWidget):
         self.bin_menu.addItems(["0.0004", "0.001", "0.010", "0.100"])
         self.bin_menu.currentIndexChanged.connect(self.bin_toggle)
 
-        self.B_btn = QSpinBox(minimum=1, maximum=100, value=10)
-        self.B2_btn = QSpinBox(minimum=1, maximum=1000, value=600)
+        self.B_btn = QSpinBox(minimum=1, maximum=100, value=10) # duration for laser execution
+        self.B2_btn = QSpinBox(minimum=1, maximum=1000, value=600) # duration for long-term monitoring
         self.nspike_btn = QSpinBox(minimum=1, maximum=100, value=1)
         self.target_btn = QComboBox()
         self.target_btn.addItems(["0.2", "0.4", "0.6", "0.8", "1.0"])
         self.target_btn.setCurrentIndex(0)
+        self.direction_btn = QComboBox()
+        self.direction_btn.addItems(["up", "down"])
+        self.direction_btn.setCurrentIndex(0)
 
         self.duration_btn = QLabel("60 s")
         self.fr_btn = QLabel("1.0 Hz")
@@ -354,6 +360,7 @@ class NCtrlGUI(QWidget):
 
         self.layout_setting.addRow("Unit ID", self.unit_selector)
         self.layout_setting.addRow("Target laser rate (Hz)", self.target_btn)
+        self.layout_setting.addRow("Direction", self.direction_btn)
         self.layout_setting.addRow("Bin size (s)", self.bin_menu)
         self.layout_setting.addRow("Bin count threshold", self.B_btn)
         self.layout_setting.addRow("Bin count monitor", self.B2_btn)

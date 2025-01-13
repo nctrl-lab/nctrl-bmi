@@ -175,7 +175,7 @@ class FastBinner(EventEmitter):
             self.emit('decode', X=self.output)
             self.count_vec.step(steps=current_bin - self.last_bin)
             self.last_bin = current_bin
-            
+
         if self.id is None:
             self.count_vec[-1, spk_id] += 1
         elif self.id == spk_id:
