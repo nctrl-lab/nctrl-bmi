@@ -9,7 +9,8 @@ console_handler.setFormatter(logging.Formatter(log_format))
 logger.addHandler(console_handler)
 
 try:
-    from spiketag.view import raster_view
+    # from spiketag.view import raster_view
+    from .view import FrView
     from spiketag.utils import Timer
     SPIKETAG_AVAILABLE = True
 except ImportError:
@@ -44,7 +45,7 @@ class NCtrlGUI(QWidget):
         self.view_timer = QtCore.QTimer(self) if nctrl else None
         if self.view_timer:
             self.view_timer.timeout.connect(self.view_update)
-            self.update_interval = 500
+            self.update_interval = 5000
 
         # Parameters
         self.decoder = None
@@ -58,7 +59,8 @@ class NCtrlGUI(QWidget):
 
     def init_gui(self, t_window=10e-3, view_window=1):
         if SPIKETAG_AVAILABLE:
-            self.setup_raster_view(t_window, view_window)
+            self.fr_view = FrView()
+            # self.setup_raster_view(t_window, view_window)
         self.setup_ui()
 
     def setup_ui(self):
@@ -137,9 +139,10 @@ class NCtrlGUI(QWidget):
         
         layout_right = QVBoxLayout()
         if SPIKETAG_AVAILABLE:
-            layout_right.addWidget(self.raster_view.native)
+            # layout_right.addWidget(self.raster_view.native)
+            layout_right.addWidget(FrView())
         else:
-            layout_right.addWidget(QLabel("Raster view not available (spiketag module not found)"))
+            layout_right.addWidget(QLabel("View not available (spiketag module not found)"))
         rightside = QWidget()
         rightside.setLayout(layout_right)
 
@@ -151,10 +154,10 @@ class NCtrlGUI(QWidget):
         layout_main.addWidget(splitter)
         self.setLayout(layout_main)
 
-    def setup_raster_view(self, t_window, view_window):
-        if SPIKETAG_AVAILABLE:
-            n_units = self.nctrl.bmi.fpga.n_units + 1 if self.nctrl else 10
-            self.raster_view = raster_view(n_units=n_units, t_window=t_window, view_window=view_window)
+    # def setup_raster_view(self, t_window, view_window):
+    #     if SPIKETAG_AVAILABLE:
+    #         n_units = self.nctrl.bmi.fpga.n_units + 1 if self.nctrl else 10
+    #         self.raster_view = raster_view(n_units=n_units, t_window=t_window, view_window=view_window)
 
     def bmi_toggle(self, checked):
         if checked:
@@ -236,7 +239,8 @@ class NCtrlGUI(QWidget):
 
     def view_update(self):
         if self.nctrl and SPIKETAG_AVAILABLE:
-            self.raster_view.update_fromfile(filename=self.nctrl.bmi.fetfile, n_items=8, last_N=20000)
+            # self.raster_view.update_fromfile(filename=self.nctrl.bmi.fetfile, n_items=8, last_N=20000)
+            self.fr_view.set_data(self.nctrl.bmi.fr_binner.get_data())
     
     def decoder_changed(self):
         if hasattr(self, 'layout_setting'):
