@@ -3,7 +3,7 @@
 
 #define ENABLE_PIN 2
 #define LASER_PIN 3
-#define START_PIN 5
+#define START_PIN 4
 
 // laser timer
 const unsigned long LASER_PULSE_DURATION = 5000; // 5 ms
