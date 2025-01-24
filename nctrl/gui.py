@@ -140,7 +140,7 @@ class NCtrlGUI(QWidget):
         layout_right = QVBoxLayout()
         if SPIKETAG_AVAILABLE:
             # layout_right.addWidget(self.raster_view.native)
-            layout_right.addWidget(FrView())
+            layout_right.addWidget(self.fr_view.native)
         else:
             layout_right.addWidget(QLabel("View not available (spiketag module not found)"))
         rightside = QWidget()
