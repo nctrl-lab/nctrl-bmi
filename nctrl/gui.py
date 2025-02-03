@@ -240,7 +240,7 @@ class NCtrlGUI(QWidget):
     def view_update(self):
         if self.nctrl and SPIKETAG_AVAILABLE:
             # self.raster_view.update_fromfile(filename=self.nctrl.bmi.fetfile, n_items=8, last_N=20000)
-            self.fr_view.set_data(self.nctrl.bmi.fr_binner.get_data())
+            self.fr_view.set_data(self.nctrl.bmi.fr_binner.output)
     
     def decoder_changed(self):
         if hasattr(self, 'layout_setting'):
