@@ -201,24 +201,3 @@ class FastBinner(EventEmitter):
             return self.count_vec()[:, 1:]
         else:
             return self.count_vec()
-
-    def get_data(self, window_size=100):
-        """
-        Return spike counts from the buffer. Optionally return only the last 'window_size' bins.
-        
-        Parameters
-        ----------
-        window_size : int, optional
-            Number of recent bins to retrieve. If None, returns all data.
-
-        Returns
-        -------
-        ndarray
-            Spike counts across the specified bins.
-        """
-        data = self.output
-        if window_size is not None:
-            # 고려사항: 요청한 window_size가 버퍼 크기보다 크면 전체 데이터 반환
-            window_size = min(window_size, len(data))
-            return data[-window_size:]  # 최근 window_size 만큼의 데이터 반환
-        return data
