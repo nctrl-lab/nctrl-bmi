@@ -96,7 +96,7 @@ class DynamicFrThreshold(FrThreshold):
         while left < right:
             threshold = (left + right) // 2
             
-            threshold_comp = self.buffer >= threshold if self.direction == 'up' else self.buffer <= threshold
+            threshold_comp = self.buffer() >= threshold if self.direction == 'up' else self.buffer() <= threshold
             threshold_mask = np.concatenate(([0], threshold_comp, [0]))
             block_start = np.where(~threshold_mask[:-1] & threshold_mask[1:])[0]
             
