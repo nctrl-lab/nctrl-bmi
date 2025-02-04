@@ -53,7 +53,7 @@ class DynamicFrThreshold(FrThreshold):
         self.direction = 'up'
         self.target_fr = 100
         self.bin_size = 0.1
-        self.B_bins = 10
+        self.B_bins_ = 10
         self.B2_bins = 100
 
     def fit(self, unit_id=None, target_fr=None, bin_size=None, B_bins=None, B2_bins=None, direction='up'):
@@ -64,7 +64,7 @@ class DynamicFrThreshold(FrThreshold):
         if bin_size is not None:
             self.bin_size = bin_size
         if B_bins is not None: # duration for laser execution
-            self.B_bins = B_bins
+            self.B_bins_ = B_bins
         if B2_bins is not None: # duration for monitoring
             self.B2_bins = B2_bins
         if direction is not None:
@@ -108,7 +108,7 @@ class DynamicFrThreshold(FrThreshold):
                 continue
                 
             block_end = np.where(threshold_mask[:-1] & ~threshold_mask[1:])[0]
-            fire_count = np.ceil((block_end - block_start) / self.B_bins).sum()
+            fire_count = np.ceil((block_end - block_start) / self.B_bins_).sum()
 
             if self.direction == 'up':
                 if fire_count >= self.n_fire:
@@ -139,7 +139,7 @@ class DynamicFrThreshold(FrThreshold):
                     return 1
                 else:
                     self.active_count += 1
-                    if self.active_count >= self.B_bins:
+                    if self.active_count >= self.B_bins_:
                         self.active_count = 0
                         return 1
             else:
@@ -153,7 +153,7 @@ class DynamicFrThreshold(FrThreshold):
                     return 1
                 else:
                     self.active_count += 1
-                    if self.active_count >= self.B_bins:
+                    if self.active_count >= self.B_bins_:
                         self.active_count = 0
                         return 1
             else:

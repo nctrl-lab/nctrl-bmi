@@ -65,7 +65,13 @@ class CircularBuffer:
         result = np.empty_like(self.buffer)
         np.concatenate((self.buffer[self.index+1:], self.buffer[:self.index+1]), out=result)
         return result
-    
+
+    def min(self):
+        return np.min(self())
+
+    def max(self):
+        return np.max(self())
+
     def __getitem__(self, index):
         if isinstance(index, tuple):
             if isinstance(index[0], slice):
