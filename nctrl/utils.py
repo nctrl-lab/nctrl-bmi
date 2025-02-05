@@ -58,6 +58,8 @@ class CircularBuffer:
         self.length = size[0] if isinstance(size, tuple) else size
         self.size = size
         self.index = 0
+        self.counter = 0
+        self.ready = False
         
     def __call__(self):
         if self.index == self.length - 1:
@@ -67,10 +69,10 @@ class CircularBuffer:
         return result
 
     def min(self):
-        return np.min(self())
+        return np.min(self.buffer)
 
     def max(self):
-        return np.max(self())
+        return np.max(self.buffer)
 
     def __getitem__(self, index):
         if isinstance(index, tuple):
@@ -121,6 +123,11 @@ class CircularBuffer:
 
         self.buffer[indices] = 0
         self.index = (self.index + steps) % self.length
+
+        if not self.ready:
+            self.counter += steps
+            if self.counter >= self.length:
+                self.ready = True
 
 
 class FastBinner(EventEmitter):

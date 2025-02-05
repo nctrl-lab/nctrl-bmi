@@ -125,40 +125,32 @@ class DynamicFrThreshold(FrThreshold):
 
     def predict(self, X):
         unit_spike_count = X.sum()
-
-        # This buffer is basically convolution of the spike count with a window of size B_bins (which will be 1 s)
         self.buffer[-1] = unit_spike_count
+        
+        if not self.buffer.ready:
+            self.buffer.step()
+            return 0
+            
         self.set_nspike()
         self.buffer.step()
-        
-        if self.direction == 'up':
-            if unit_spike_count >= self.nspike:
-                if not self.is_active:
-                    self.is_active = True
-                    self.active_count = 0
-                    return 1
-                else:
-                    self.active_count += 1
-                    if self.active_count >= self.B_bins_:
-                        self.active_count = 0
-                        return 1
-            else:
-                self.is_active = False
+
+        # Determine if spike count meets threshold based on direction
+        threshold_met = (unit_spike_count >= self.nspike if self.direction == 'up' 
+                        else unit_spike_count <= self.nspike)
+
+        if threshold_met:
+            if not self.is_active:
+                self.is_active = True
                 self.active_count = 0
+                return 1
+            
+            self.active_count += 1
+            if self.active_count >= self.B_bins_:
+                self.active_count = 0
+                return 1
         else:
-            if unit_spike_count <= self.nspike:
-                if not self.is_active:
-                    self.is_active = True
-                    self.active_count = 0
-                    return 1
-                else:
-                    self.active_count += 1
-                    if self.active_count >= self.B_bins_:
-                        self.active_count = 0
-                        return 1
-            else:
-                self.is_active = False
-                self.active_count = 0
+            self.is_active = False
+            self.active_count = 0
 
         return 0
 
