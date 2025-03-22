@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 import logging
 from PyQt5.QtWidgets import QApplication
 
@@ -8,10 +9,10 @@ logger = logging.getLogger(__name__)
 from spiketag.base import probe
 from spiketag.realtime import BMI
 
-from nctrl.decoder import *
-from nctrl.output import Laser
-from nctrl.gui import NCtrlGUI
-from nctrl.utils import kill_existing_processes
+from .decoder import *
+from .output import Laser
+from .gui import NCtrlGUI
+from .utils import kill_existing_processes, FastBinner
 
 
 class NCtrl:
@@ -102,10 +103,10 @@ class NCtrl:
         decoder_map = {
             'fr': (FrThreshold, 'binner'),
             'single': (SingleSpike, 'spike'),
-            'spikes': (Spikes, 'binner'),
+            'dynamic': (DynamicFrThreshold, 'binner'),
             'print': (Print, 'spike')
         }
-        decoder_class, mode = decoder_map.get(decoder, (SingleSpike, 'spike'))
+        decoder_class, mode = decoder_map.get(decoder, (FrThreshold, 'binner'))
 
         self.dec = decoder_class()
         self.dec.fit(**kwargs)
@@ -143,6 +144,7 @@ class NCtrlBMI(BMI):
         super().__init__(prb, fetfile, ttlport)
         self.mode = mode
         self.output = output
+        self.fr_binner = None
 
     def BMI_core_func(self, gui_queue, model=None):
         self.model = model
@@ -151,6 +153,24 @@ class NCtrlBMI(BMI):
 
             if self.mode == 'binner':
                 self.binner.input(bmi_output)
+                if self.fr_binner is not None:
+                    self.fr_binner.input(bmi_output)
             elif self.mode == 'spike':
                 y = self.dec.predict(bmi_output)
                 self.output(y)
+                
+    def set_binner(self, bin_size, B_bins, id=None):
+        N_units = self.fpga.n_units + 1 # The unit #0, no matter from which group, is always noise
+        self.binner = FastBinner(bin_size, N_units, B_bins, id)
+        logger.info(
+            f'BMI binner: {B_bins} bins ' + 
+            (f'{N_units} units, each bin is {bin_size} seconds' if id is None else f'for unit {id}')
+        )
+    
+    def set_fr_binner(self, bin_size=5, B_bins=360, id=None):
+        n_units = self.fpga.n_units + 1
+        self.fr_binner = FastBinner(bin_size, n_units, B_bins, id)
+        logger.info(
+            f'BMI fr binner: {B_bins} bins ' + 
+            (f'{n_units} units, each bin is {bin_size} seconds' if id is None else f'for unit {id}')
+        )

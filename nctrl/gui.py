@@ -9,7 +9,8 @@ console_handler.setFormatter(logging.Formatter(log_format))
 logger.addHandler(console_handler)
 
 try:
-    from spiketag.view import raster_view
+    # from spiketag.view import raster_view
+    from .view import FrView
     from spiketag.utils import Timer
     SPIKETAG_AVAILABLE = True
 except ImportError:
@@ -28,7 +29,6 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QFormLayout,
     QSpinBox,
-    QDoubleSpinBox,
     QRadioButton,
     QLabel,
     QComboBox,
@@ -45,19 +45,22 @@ class NCtrlGUI(QWidget):
         self.view_timer = QtCore.QTimer(self) if nctrl else None
         if self.view_timer:
             self.view_timer.timeout.connect(self.view_update)
-            self.update_interval = 60
+            self.update_interval = 5000
 
         # Parameters
         self.decoder = None
         self.bin_size = 0.00004
         self.B_bins = 1
+        self.B2_bins = 1
+        self.direction = 'up'
         self.nspike = 1
 
         self.init_gui()
 
     def init_gui(self, t_window=10e-3, view_window=1):
         if SPIKETAG_AVAILABLE:
-            self.setup_raster_view(t_window, view_window)
+            self.fr_view = FrView()
+            # self.setup_raster_view(t_window, view_window)
         self.setup_ui()
 
     def setup_ui(self):
@@ -86,19 +89,19 @@ class NCtrlGUI(QWidget):
 
         # decoder settings
         self.decoder_fr_btn = QRadioButton("FR")
-        self.decoder_spikes_btn = QRadioButton("Spikes")
         self.decoder_single_btn = QRadioButton("Single Spike")
+        self.decoder_dynamic_btn = QRadioButton("Dynamic FR")
         self.decoder_print_btn = QRadioButton("Print")
 
         self.decoder_fr_btn.toggled.connect(self.decoder_changed)
-        self.decoder_spikes_btn.toggled.connect(self.decoder_changed)
         self.decoder_single_btn.toggled.connect(self.decoder_changed)
+        self.decoder_dynamic_btn.toggled.connect(self.decoder_changed)
         self.decoder_print_btn.toggled.connect(self.decoder_changed)
         
         self.layout_decoder = QHBoxLayout()
         self.layout_decoder.addWidget(self.decoder_fr_btn)
         self.layout_decoder.addWidget(self.decoder_single_btn)
-        self.layout_decoder.addWidget(self.decoder_spikes_btn)
+        self.layout_decoder.addWidget(self.decoder_dynamic_btn)
         self.layout_decoder.addWidget(self.decoder_print_btn)
 
         # decoder settings
@@ -108,12 +111,18 @@ class NCtrlGUI(QWidget):
 
         # laser settings
         self.laser_duration_btn = QComboBox()
-        self.laser_duration_btn.addItems(["1", "5", "10", "100", "500"])
+        self.laser_duration_btn.addItems(["1", "2", "5", "10", "20", "50", "100", "200", "500"])
         self.laser_duration_btn.currentIndexChanged.connect(self.laser_duration_toggle)
-        self.laser_duration_btn.setCurrentIndex(1)
+        self.laser_duration_btn.setCurrentIndex(6)
+
+        self.laser_latency_btn = QComboBox()
+        self.laser_latency_btn.addItems(["0", "10", "20", "50", "100", "200", "500"])
+        self.laser_latency_btn.currentIndexChanged.connect(self.laser_latency_toggle)
+        self.laser_latency_btn.setCurrentIndex(3)
 
         self.layout_laser = QFormLayout()
         self.layout_laser.addRow("Laser duration (ms)", self.laser_duration_btn)
+        self.layout_laser.addRow("Laser latency (ms)", self.laser_latency_btn)
 
         # main layout
         layout_btn = QGridLayout()
@@ -130,9 +139,10 @@ class NCtrlGUI(QWidget):
         
         layout_right = QVBoxLayout()
         if SPIKETAG_AVAILABLE:
-            layout_right.addWidget(self.raster_view.native)
+            # layout_right.addWidget(self.raster_view.native)
+            layout_right.addWidget(self.fr_view.native)
         else:
-            layout_right.addWidget(QLabel("Raster view not available (spiketag module not found)"))
+            layout_right.addWidget(QLabel("View not available (spiketag module not found)"))
         rightside = QWidget()
         rightside.setLayout(layout_right)
 
@@ -144,10 +154,10 @@ class NCtrlGUI(QWidget):
         layout_main.addWidget(splitter)
         self.setLayout(layout_main)
 
-    def setup_raster_view(self, t_window, view_window):
-        if SPIKETAG_AVAILABLE:
-            n_units = self.nctrl.bmi.fpga.n_units + 1 if self.nctrl else 10
-            self.raster_view = raster_view(n_units=n_units, t_window=t_window, view_window=view_window)
+    # def setup_raster_view(self, t_window, view_window):
+    #     if SPIKETAG_AVAILABLE:
+    #         n_units = self.nctrl.bmi.fpga.n_units + 1 if self.nctrl else 10
+    #         self.raster_view = raster_view(n_units=n_units, t_window=t_window, view_window=view_window)
 
     def bmi_toggle(self, checked):
         if checked:
@@ -157,20 +167,33 @@ class NCtrlGUI(QWidget):
                 # Decoder settings
                 if self.decoder == 'fr':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
-                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
+                    self.nctrl.bmi.set_fr_binner(bin_size=5, B_bins=360, id=unit_id)
+                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins, id=unit_id)
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, nspike=self.nspike)
-                    logger.info(f"Fr BMI: bin size {self.bin_size} ms, Bin number {self.B_bins}")
+                    logger.info(f"Fr BMI: bin size {self.bin_size} s, Bin number {self.B_bins}")
                     logger.info(f"Unit ID: {unit_id}, threshold {self.nspike_btn.value()}")
                     logger.info(f"Laser duration: {self.laser_duration} ms")
-                elif self.decoder == 'spikes':
-                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins)
-                    unit_ids = np.array([int(item.text()) for item in self.unit_selector.selectedItems()], dtype=int)
-                    self.nctrl.set_decoder(decoder=self.decoder, unit_ids=unit_ids)
+
+                elif self.decoder == 'dynamic':
+                    unit_id = int(self.unit_selector.selectedItems()[0].text())
+                    target_fr = float(self.target_btn.currentText())
+                    direction = self.direction_btn.currentText()
+                    self.nctrl.bmi.set_fr_binner(bin_size=5, B_bins=360, id=unit_id)
+                    self.nctrl.bmi.set_binner(bin_size=self.bin_size, B_bins=self.B_bins, id=unit_id)
+                    self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id, target_fr=target_fr, bin_size=self.bin_size, B_bins=self.B_bins, B2_bins=self.B2_bins, direction=direction)
+
+                    logger.info(f"Fr BMI: bin size {self.bin_size} s, Bin number (threshold) {self.B_bins}, monitor {self.B2_bins}")
+                    logger.info(f"Unit ID: {unit_id}, target FR {target_fr} Hz")
+                    logger.info(f"Laser latency: {self.laser_latency} ms")
+                    logger.info(f"Laser duration: {self.laser_duration} ms")
+
                 elif self.decoder == 'single':
                     unit_id = int(self.unit_selector.selectedItems()[0].text())
                     self.nctrl.set_decoder(decoder=self.decoder, unit_id=unit_id)
                     logger.info(f"Single spike BMI: Unit ID {unit_id}")
+                    logger.info(f"Laser latency: {self.laser_latency} ms")
                     logger.info(f"Laser duration: {self.laser_duration} ms")
+
                 elif self.decoder == 'print':
                     self.nctrl.set_decoder(decoder=self.decoder)
                     logger.info('Printing BMI messages')
@@ -216,7 +239,8 @@ class NCtrlGUI(QWidget):
 
     def view_update(self):
         if self.nctrl and SPIKETAG_AVAILABLE:
-            self.raster_view.update_fromfile(filename=self.nctrl.bmi.fetfile, n_items=8, last_N=20000)
+            # self.raster_view.update_fromfile(filename=self.nctrl.bmi.fetfile, n_items=8, last_N=20000)
+            self.fr_view.set_data(self.nctrl.bmi.fr_binner.output)
     
     def decoder_changed(self):
         if hasattr(self, 'layout_setting'):
@@ -233,10 +257,10 @@ class NCtrlGUI(QWidget):
             self.decoder = 'single'
             self.set_single_layout()
             logger.info('Single spike decoder selected')
-        elif self.decoder_spikes_btn.isChecked():
-            self.decoder = 'spikes'
-            self.set_spikes_layout()
-            logger.info('Spikes decoder selected')
+        elif self.decoder_dynamic_btn.isChecked():
+            self.decoder = 'dynamic'
+            self.set_dynamic_layout()
+            logger.info('Dynamic FR decoder selected')
         elif self.decoder_print_btn.isChecked():
             self.decoder = 'print'
             self.set_print_layout()
@@ -251,7 +275,7 @@ class NCtrlGUI(QWidget):
 
         self.unit_selector = QListWidget()
         self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
-        for i in range(1, n_unit + 1):  # Up to 16 units
+        for i in range(1, n_unit + 1):
             self.unit_selector.addItem(f"{i}")
         self.unit_selector.setToolTip("Select a unit to generate spikes.")
 
@@ -266,6 +290,11 @@ class NCtrlGUI(QWidget):
 
         for spin in [self.B_btn, self.nspike_btn]:
             spin.valueChanged.connect(self.update_fr)
+        
+        # Set default values
+        self.bin_menu.setCurrentIndex(3)
+        self.B_btn.setValue(10)
+        self.nspike_btn.setValue(1)
 
         self.layout_setting.addRow("Unit ID", self.unit_selector)
         self.layout_setting.addRow("Bin size (s)", self.bin_menu)
@@ -281,6 +310,11 @@ class NCtrlGUI(QWidget):
         self.nspike = self.nspike_btn.value()
         self.B_bins = self.B_btn.value()
         self.fr_btn.setText(f"{self.nspike / self.bin_size / self.B_bins:.2f} Hz")
+    
+    def update_duration(self):
+        self.bin_size = float(self.bin_menu.currentText())
+        self.B2_bins = self.B2_btn.value()
+        self.duration_btn.setText(f"{self.B2_bins * self.bin_size:.2f} s")
 
     # Single spike decoder setting
     def set_single_layout(self):
@@ -292,20 +326,51 @@ class NCtrlGUI(QWidget):
         self.unit_selector.setToolTip("Select a unit to generate spikes.")
         self.layout_setting.addRow("Unit ID", self.unit_selector)
 
-    # Spikes decoder setting
-    def set_spikes_layout(self):
+    # Dynamic FR decoder setting
+    def set_dynamic_layout(self):
         n_unit = self.nctrl.n_units if self.nctrl else 10
-        self.unit_selector = QListWidget()
-        self.unit_selector.setSelectionMode(QListWidget.MultiSelection)
-        for i in range(1, n_unit + 1):  # Up to 16 units
-            self.unit_selector.addItem(f"{i}")
-        self.unit_selector.setToolTip("Select units to generate spikes.")
 
-        self.bin_size = 0.0004
-        self.B_bins = 1
-        self.nspike = 1
+        self.unit_selector = QListWidget()
+        self.unit_selector.setSelectionMode(QListWidget.SingleSelection)
+        for i in range(1, n_unit + 1):
+            self.unit_selector.addItem(f"{i}")
+        self.unit_selector.setToolTip("Select a unit to generate spikes.")
+
+        self.bin_menu = QComboBox()
+        self.bin_menu.addItems(["0.0004", "0.001", "0.010", "0.100"])
+        self.bin_menu.currentIndexChanged.connect(self.bin_toggle)
+
+        self.B_btn = QSpinBox(minimum=1, maximum=100, value=10) # duration for laser execution
+        self.B2_btn = QSpinBox(minimum=1, maximum=1000, value=600) # duration for long-term monitoring
+        self.nspike_btn = QSpinBox(minimum=1, maximum=100, value=1)
+        self.target_btn = QComboBox()
+        self.target_btn.addItems(["0.2", "0.4", "0.6", "0.8", "1.0"])
+        self.target_btn.setCurrentIndex(0)
+        self.direction_btn = QComboBox()
+        self.direction_btn.addItems(["up", "down"])
+        self.direction_btn.setCurrentIndex(0)
+
+        self.duration_btn = QLabel("60 s")
+        self.fr_btn = QLabel("1.0 Hz")
+
+        self.bin_menu.currentIndexChanged.connect(self.update_duration)
+        self.B2_btn.valueChanged.connect(self.update_duration)
+        
+        # Set default values
+        self.bin_menu.setCurrentIndex(3)
+        self.B_btn.setValue(10)
+        self.B2_btn.setValue(600)
+        self.nspike_btn.setValue(1)
 
         self.layout_setting.addRow("Unit ID", self.unit_selector)
+        self.layout_setting.addRow("Target laser rate (Hz)", self.target_btn)
+        self.layout_setting.addRow("Direction", self.direction_btn)
+        self.layout_setting.addRow("Bin size (s)", self.bin_menu)
+        self.layout_setting.addRow("Bin count threshold", self.B_btn)
+        self.layout_setting.addRow("Bin count monitor", self.B2_btn)
+        self.layout_setting.addRow("Duration (s)", self.duration_btn)
+        self.layout_setting.addRow("Spike count", self.nspike_btn)
+        self.layout_setting.addRow("Fr", self.fr_btn)
 
     # Print decoder setting
     def set_print_layout(self):
@@ -318,6 +383,12 @@ class NCtrlGUI(QWidget):
         logger.info(f"Laser duration: {self.laser_duration} ms")
         if self.nctrl:
             self.nctrl.output.set_duration(self.laser_duration)
+
+    def laser_latency_toggle(self):
+        self.laser_latency = int(self.laser_latency_btn.currentText())
+        logger.info(f"Laser latency: {self.laser_latency} ms")
+        if self.nctrl:
+            self.nctrl.output.set_latency(self.laser_latency)
     
     def closeEvent(self, event):
         if self.nctrl:

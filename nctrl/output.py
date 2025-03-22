@@ -50,6 +50,7 @@ class Laser:
         self.ser.flushInput()
         self.ser.flushOutput()
         self.duration = 500
+        self.latency = 0
 
     def __call__(self, y):
         """
@@ -105,6 +106,18 @@ class Laser:
         self.duration = duration
         self._write_serial(f'd{duration}'.encode())
         logger.info(f'Setting duration to {duration} ms')
+        self._print_serial()
+    
+    def set_latency(self, latency):
+        """
+        Set the latency of the laser pulse.
+
+        Args:
+            latency (int): Latency of the laser pulse in milliseconds.
+        """
+        self.latency = latency
+        self._write_serial(f'l{latency}'.encode())
+        logger.info(f'Setting latency to {latency} ms')
         self._print_serial()
     
     def _print_serial(self):
