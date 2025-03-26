@@ -91,7 +91,7 @@ class DynamicFrThreshold(FrThreshold):
         3. Calculates expected firing rate from block durations
         4. Sets threshold to maintain target firing rate (self.n_fire)
         """
-        left, right = self.buffer.min(), self.buffer.max() + 1
+        left, right = np.max([1, self.buffer.min()]), self.buffer.max() + 1
         
         while left < right:
             threshold = (left + right) // 2
@@ -121,7 +121,10 @@ class DynamicFrThreshold(FrThreshold):
                 else:
                     left = threshold + 1
 
-        self.nspike = left - 1 if self.direction == 'up' else left
+        nspike = left - 1 if self.direction == 'up' else left
+        if nspike != self.nspike:
+            self.nspike = nspike
+            logger.info(f'Setting nspike to {nspike}')
 
     def predict(self, X):
         unit_spike_count = X.sum()
